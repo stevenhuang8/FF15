@@ -31,10 +31,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Extract and format tool calls from steps
+    const toolCalls = result.steps?.flatMap(step => 
+      step.toolCalls?.map(toolCall => ({
+        type: `tool-${toolCall.toolName}`,
+        state: "output-available" as const,
+        input: (toolCall as any).args,
+        output: (step.toolResults?.find(result => 
+          result.toolCallId === toolCall.toolCallId
+        ) as any)?.result || (step.toolResults?.find(result => 
+          result.toolCallId === toolCall.toolCallId
+        ) as any)
+      })) || []
+    ) || [];
+
     return NextResponse.json({
       response: result.text,
       sources: result.sources || [],
-      toolCalls: result.steps || [],
+      toolCalls,
     });
   } catch (error) {
     console.error("Chat API error:", error);

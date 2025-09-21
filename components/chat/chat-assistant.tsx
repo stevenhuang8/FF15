@@ -36,8 +36,8 @@ type ChatMessage = {
     title?: string;
   }>;
   toolCalls?: Array<{
-    type: string;
-    state: string;
+    type: `tool-${string}`;
+    state: "input-streaming" | "input-available" | "output-available" | "output-error";
     input?: any;
     output?: any;
     errorText?: string;
@@ -117,36 +117,10 @@ export default function ChatAssistant() {
             />
           ) : (
             messages.map((message) => (
-              <Message key={message.id} from={message.role}>
-                <MessageContent>{message.content}</MessageContent>
-
-                {/* Display tool calls if available */}
-                {message.toolCalls && message.toolCalls.length > 0 && (
-                  <div className="mt-4">
-                    {message.toolCalls.map((toolCall, index) => (
-                      <Tool
-                        key={index}
-                        defaultOpen={toolCall.state === "output-available"}
-                      >
-                        <ToolHeader
-                          type={toolCall.type as any}
-                          state={toolCall.state as any}
-                        />
-                        <ToolContent>
-                          {toolCall.input && (
-                            <ToolInput input={toolCall.input} />
-                          )}
-                          {(toolCall.output || toolCall.errorText) && (
-                            <ToolOutput
-                              output={toolCall.output}
-                              errorText={toolCall.errorText as any}
-                            />
-                          )}
-                        </ToolContent>
-                      </Tool>
-                    ))}
-                  </div>
-                )}
+              <div key={message.id} className="w-full">
+                <Message from={message.role}>
+                  <MessageContent>{message.content}</MessageContent>
+                </Message>
 
                 {/* Display sources if available */}
                 {message.sources && message.sources.length > 0 && (
@@ -165,7 +139,35 @@ export default function ChatAssistant() {
                     </Sources>
                   </div>
                 )}
-              </Message>
+
+                {/* Display tool calls if available */}
+                {message.toolCalls && Array.isArray(message.toolCalls) && message.toolCalls.length > 0 && (
+                  <div className="mt-4">
+                    {message.toolCalls.map((toolCall, index) => (
+                      <Tool
+                        key={index}
+                        defaultOpen={toolCall.state === "output-available"}
+                      >
+                        <ToolHeader
+                          type={toolCall.type}
+                          state={toolCall.state}
+                        />
+                        <ToolContent>
+                          {toolCall.input && (
+                            <ToolInput input={toolCall.input} />
+                          )}
+                          {(toolCall.output || toolCall.errorText) && (
+                            <ToolOutput
+                              output={toolCall.output}
+                              errorText={toolCall.errorText}
+                            />
+                          )}
+                        </ToolContent>
+                      </Tool>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))
           )}
           {isLoading && (

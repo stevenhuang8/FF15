@@ -48,8 +48,6 @@ export default function ChatAssistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  console.log(messages);
-
   const handleSubmit = async (
     message: { text?: string; files?: any[] },
     event: React.FormEvent
@@ -80,19 +78,46 @@ export default function ChatAssistant() {
         body: JSON.stringify({ messages: updatedMessages }),
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error("Failed to get response");
+      }
 
-      if (response.ok) {
-        const assistantMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: data.response,
-          sources: data.sources || [],
-          toolCalls: data.toolCalls || [],
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-      } else {
-        throw new Error(data.error || "Failed to get response");
+      // Create a placeholder assistant message that we'll update as we stream
+      const assistantMessageId = (Date.now() + 1).toString();
+      const assistantMessage: ChatMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // Handle the streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        let done = false;
+        let accumulatedContent = "";
+
+        while (!done) {
+          const { value, done: readerDone } = await reader.read();
+          done = readerDone;
+
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true });
+            accumulatedContent += chunk;
+
+            // Update the assistant message with the accumulated content
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessageId
+                  ? { ...msg, content: accumulatedContent }
+                  : msg
+              )
+            );
+          }
+        }
       }
     } catch (error) {
       const errorMessage: ChatMessage = {
@@ -123,12 +148,12 @@ export default function ChatAssistant() {
                 </Message>
 
                 {/* Display sources if available */}
-                {message.sources && message.sources.length > 0 && (
+                {(message as any).sources && (message as any).sources.length > 0 && (
                   <div className="mt-4">
                     <Sources>
-                      <SourcesTrigger count={message.sources.length} />
+                      <SourcesTrigger count={(message as any).sources.length} />
                       <SourcesContent>
-                        {message.sources.map((source, index) => (
+                        {(message as any).sources.map((source: any, index: number) => (
                           <Source
                             key={index}
                             href={source.url}
@@ -141,9 +166,9 @@ export default function ChatAssistant() {
                 )}
 
                 {/* Display tool calls if available */}
-                {message.toolCalls && Array.isArray(message.toolCalls) && message.toolCalls.length > 0 && (
+                {(message as any).toolCalls && Array.isArray((message as any).toolCalls) && (message as any).toolCalls.length > 0 && (
                   <div className="mt-4">
-                    {message.toolCalls.map((toolCall, index) => (
+                    {(message as any).toolCalls.map((toolCall: any, index: number) => (
                       <Tool
                         key={index}
                         defaultOpen={toolCall.state === "output-available"}

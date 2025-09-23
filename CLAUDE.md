@@ -29,15 +29,17 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications:
 
 ### Key Directories
 - `app/` - Next.js App Router pages and API routes
-- `app/api/chat/` - AI chat endpoint using non-streaming `generateText()`
+- `app/api/chat/` - AI chat endpoint using streaming `streamText()`
 - `components/ui/` - shadcn/ui components
 - `lib/utils.ts` - Utility functions including `cn()` for className merging
 
 ### AI Integration
-- Uses AI SDK 5's `generateText()` for non-streaming responses
+- Uses AI SDK 5's `streamText()` for streaming responses
 - Configured for GPT-5 via OpenAI provider
-- API route at `/api/chat` expects `{ message: string }` and returns `{ response: string }`
+- API route at `/api/chat` expects `{ messages: Array }` and returns streaming data
+- Frontend uses `useChat` hook for real-time streaming
 - Requires `OPENAI_API_KEY` in `.env.local`
+- Reference: https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#streamtext
 
 ### UI Components
 - **shadcn/ui** configured with:

@@ -1,17 +1,14 @@
 import { SYSTEM_INSTRUCTIONS } from "@/components/agent/prompt";
 import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
-import { NextRequest, NextResponse } from "next/server";
+import { streamText } from "ai";
+import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json(
-        { error: "Messages array is required" },
-        { status: 400 }
-      );
+      return new Response("Messages array is required", { status: 400 });
     }
 
     // Convert frontend message format to AI SDK format
@@ -20,7 +17,7 @@ export async function POST(request: NextRequest) {
       content: msg.content,
     }));
 
-    const result = await generateText({
+    const result = streamText({
       model: openai("gpt-5"),
       system: SYSTEM_INSTRUCTIONS,
       messages: aiMessages,
@@ -31,30 +28,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Extract and format tool calls from steps
-    const toolCalls = result.steps?.flatMap(step => 
-      step.toolCalls?.map(toolCall => ({
-        type: `tool-${toolCall.toolName}`,
-        state: "output-available" as const,
-        input: (toolCall as any).args,
-        output: (step.toolResults?.find(result => 
-          result.toolCallId === toolCall.toolCallId
-        ) as any)?.result || (step.toolResults?.find(result => 
-          result.toolCallId === toolCall.toolCallId
-        ) as any)
-      })) || []
-    ) || [];
-
-    return NextResponse.json({
-      response: result.text,
-      sources: result.sources || [],
-      toolCalls,
-    });
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate response" },
-      { status: 500 }
-    );
+    return new Response("Failed to generate response", { status: 500 });
   }
 }

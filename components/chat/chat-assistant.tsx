@@ -1,5 +1,6 @@
 "use client";
 
+import { useChat } from "@ai-sdk/react";
 import { useState } from "react";
 import {
   Conversation,
@@ -37,7 +38,11 @@ type ChatMessage = {
   }>;
   toolCalls?: Array<{
     type: `tool-${string}`;
-    state: "input-streaming" | "input-available" | "output-available" | "output-error";
+    state:
+      | "input-streaming"
+      | "input-available"
+      | "output-available"
+      | "output-error";
     input?: any;
     output?: any;
     errorText?: string;
@@ -45,14 +50,14 @@ type ChatMessage = {
 };
 
 export default function ChatAssistant() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [input, setInput] = useState("");
+  const { messages, status, sendMessage } = useChat();
 
   const handleSubmit = async (
     message: { text?: string; files?: any[] },
     event: React.FormEvent
   ) => {
-    if (!message.text?.trim() || isLoading) return;
+    if (!message.text?.trim() || status === "streaming") return;
 
     // Clear the form immediately after extracting the message
     const form = (event.target as Element)?.closest("form") as HTMLFormElement;
@@ -60,76 +65,11 @@ export default function ChatAssistant() {
       form.reset();
     }
 
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content: message.text,
-    };
-
-    // Create the updated messages array including the new user message
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: updatedMessages }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
-
-      // Create a placeholder assistant message that we'll update as we stream
-      const assistantMessageId = (Date.now() + 1).toString();
-      const assistantMessage: ChatMessage = {
-        id: assistantMessageId,
-        role: "assistant",
-        content: "",
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      // Handle the streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        let done = false;
-        let accumulatedContent = "";
-
-        while (!done) {
-          const { value, done: readerDone } = await reader.read();
-          done = readerDone;
-
-          if (value) {
-            const chunk = decoder.decode(value, { stream: true });
-            accumulatedContent += chunk;
-
-            // Update the assistant message with the accumulated content
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMessageId
-                  ? { ...msg, content: accumulatedContent }
-                  : msg
-              )
-            );
-          }
-        }
-      }
-    } catch (error) {
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+    sendMessage({ text: message.text });
+    setInput("");
   };
+
+  const isLoading = status === "streaming";
 
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden">
@@ -144,61 +84,68 @@ export default function ChatAssistant() {
             messages.map((message) => (
               <div key={message.id} className="w-full">
                 <Message from={message.role}>
-                  <MessageContent>{message.content}</MessageContent>
+                  <MessageContent>
+                    {(message as any).parts?.map((part: any, i: number) => {
+                      switch (part.type) {
+                        case "text":
+                          return (
+                            <span key={`${message.id}-${i}`}>{part.text}</span>
+                          );
+                        case "reasoning":
+                          return (
+                            <span key={`${message.id}-${i}`}>{part.text}</span>
+                          );
+                        default:
+                          return null;
+                      }
+                    }) ||
+                      (message as any).content ||
+                      ""}
+                  </MessageContent>
                 </Message>
 
-                {/* Display sources if available */}
-                {(message as any).sources && (message as any).sources.length > 0 && (
-                  <div className="mt-4">
-                    <Sources>
-                      <SourcesTrigger count={(message as any).sources.length} />
-                      <SourcesContent>
-                        {(message as any).sources.map((source: any, index: number) => (
-                          <Source
-                            key={index}
-                            href={source.url}
-                            title={source.title || source.url}
+                {/* Display tool calls and sources from parts */}
+                {(message as any).parts?.map((part: any, i: number) => {
+                  if (part.type === "tool" && part.result) {
+                    return (
+                      <div className="mt-4" key={`tool-${message.id}-${i}`}>
+                        <Tool defaultOpen={true}>
+                          <ToolHeader
+                            type={`tool-${part.toolName}`}
+                            state="output-available"
                           />
-                        ))}
-                      </SourcesContent>
-                    </Sources>
-                  </div>
-                )}
-
-                {/* Display tool calls if available */}
-                {(message as any).toolCalls && Array.isArray((message as any).toolCalls) && (message as any).toolCalls.length > 0 && (
-                  <div className="mt-4">
-                    {(message as any).toolCalls.map((toolCall: any, index: number) => (
-                      <Tool
-                        key={index}
-                        defaultOpen={toolCall.state === "output-available"}
-                      >
-                        <ToolHeader
-                          type={toolCall.type}
-                          state={toolCall.state}
-                        />
-                        <ToolContent>
-                          {toolCall.input && (
-                            <ToolInput input={toolCall.input} />
-                          )}
-                          {(toolCall.output || toolCall.errorText) && (
-                            <ToolOutput
-                              output={toolCall.output}
-                              errorText={toolCall.errorText}
+                          <ToolContent>
+                            {part.args && <ToolInput input={part.args} />}
+                            {part.result && (
+                              <ToolOutput
+                                output={part.result}
+                                errorText={undefined}
+                              />
+                            )}
+                          </ToolContent>
+                        </Tool>
+                      </div>
+                    );
+                  }
+                  if (part.type === "source-url") {
+                    return (
+                      <div className="mt-4" key={`source-${message.id}-${i}`}>
+                        <Sources>
+                          <SourcesTrigger count={1} />
+                          <SourcesContent>
+                            <Source
+                              href={part.url}
+                              title={part.title || part.url}
                             />
-                          )}
-                        </ToolContent>
-                      </Tool>
-                    ))}
-                  </div>
-                )}
+                          </SourcesContent>
+                        </Sources>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
               </div>
             ))
-          )}
-          {isLoading && (
-            <Message from="assistant">
-              <MessageContent>Thinking...</MessageContent>
-            </Message>
           )}
         </ConversationContent>
       </Conversation>

@@ -1,6 +1,6 @@
 import { SYSTEM_INSTRUCTIONS } from "@/components/agent/prompt";
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { streamText, convertToModelMessages } from "ai";
 import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -11,16 +11,12 @@ export async function POST(request: NextRequest) {
       return new Response("Messages array is required", { status: 400 });
     }
 
-    // Convert frontend message format to AI SDK format
-    const aiMessages = messages.map((msg: any) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    const modelMessages = convertToModelMessages(messages);
 
     const result = streamText({
       model: openai("gpt-5"),
       system: SYSTEM_INSTRUCTIONS,
-      messages: aiMessages,
+      messages: modelMessages,
       tools: {
         web_search: openai.tools.webSearch({
           searchContextSize: "low",
@@ -28,7 +24,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return result.toTextStreamResponse();
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
     return new Response("Failed to generate response", { status: 500 });

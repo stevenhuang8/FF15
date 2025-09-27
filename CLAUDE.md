@@ -25,6 +25,7 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 
 - **Next.js 15** with App Router and Turbopack for fast builds
 - **AI SDK 5** with OpenAI GPT-5 integration and web search tool
+- **Vectorize** for RAG document retrieval from your knowledge base
 - **shadcn/ui** components (New York style, neutral base color)
 - **Tailwind CSS v4** for styling
 
@@ -36,12 +37,15 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 - `components/ai-elements/` - Vercel AI Elements components
 - `components/agent/` - Agent configuration (system prompts)
 - `components/ui/` - shadcn/ui components
+- `lib/retrieval/` - Vectorize RAG service for document retrieval
 - `lib/utils.ts` - Utility functions including `cn()` for className merging
+- `types/` - TypeScript type definitions
 
 ### AI Integration
 
 - Uses AI SDK 5's `streamText()` for streaming responses
 - Configured for GPT-5 via OpenAI provider with web search tool enabled
+- Vectorize RAG integration via `VectorizeService` in `/lib/retrieval/`
 - System instructions defined in `components/agent/prompt.ts` (travel agent theme)
 - API route at `/api/chat` expects `{ messages: Array }` and returns streaming text
 - use useChat for all streaming handling (read the doc first, always, before writing any streaming code: https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat)
@@ -49,7 +53,7 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 - **NEVER** use `sendMessage("string")` - this does NOT work and will cause runtime errors
 - Messages from useChat have a `parts` array structure, NOT a simple `content` field
 - Tool calls and sources are supported in the response format
-- Requires `OPENAI_API_KEY` in `.env.local`
+- Requires environment variables in `.env.local`
 - Reference: https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#streamtext
 
 ### Chat Architecture
@@ -85,6 +89,9 @@ Create `.env.local` with:
 
 ```
 OPENAI_API_KEY=your_openai_api_key_here
+VECTORIZE_ACCESS_TOKEN=your_vectorize_token
+VECTORIZE_ORG_ID=your_org_id
+VECTORIZE_PIPELINE_ID=your_pipeline_id
 ```
 
 ## Critical Rules for useChat Implementation

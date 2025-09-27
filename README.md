@@ -6,6 +6,7 @@ Minimal starter for AI apps with Next.js 15, TypeScript, AI SDK 5, shadcn/ui, an
 
 - Clean chat interface with GPT-5
 - AI Elements components (Conversation, Message, PromptInput)
+- Vectorize RAG integration for document retrieval
 - shadcn/ui design system
 - Non-streaming responses
 - TypeScript ready
@@ -18,10 +19,13 @@ Minimal starter for AI apps with Next.js 15, TypeScript, AI SDK 5, shadcn/ui, an
    pnpm install
    ```
 
-2. Create `.env.local` file:
+2. Create `.env.local` file with required environment variables:
 
    ```bash
-   echo "OPENAI_API_KEY=your_openai_api_key_here" > .env.local
+   OPENAI_API_KEY=your_openai_api_key_here
+   VECTORIZE_ACCESS_TOKEN=your_vectorize_token
+   VECTORIZE_ORG_ID=your_org_id
+   VECTORIZE_PIPELINE_ID=your_pipeline_id
    ```
 
 3. Start development:

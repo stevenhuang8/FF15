@@ -44,6 +44,9 @@ importers:
       '@radix-ui/react-use-controllable-state':
         specifier: ^1.2.2
         version: 1.2.2(@types/react@19.1.13)(react@19.1.0)
+      '@vectorize-io/vectorize-client':
+        specifier: ^0.4.0
+        version: 0.4.0
       ai:
         specifier: ^5.0.44
         version: 5.0.44(zod@4.1.8)
@@ -1059,6 +1062,9 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+
+  '@vectorize-io/vectorize-client@0.4.0':
+    resolution: {integrity: sha512-yy9HkOwknfoNx2d6jBUEd/SzRNFnWjtGSpi/8VcLcuY9P0oQsy03b8pcGQgAMcsJdkwRk8uqO9aOoZSJJUCYLg==}
 
   acorn@8.15.0:
     resolution: {integrity: sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==}
@@ -3135,6 +3141,8 @@ snapshots:
   '@types/unist@3.0.3': {}
 
   '@ungap/structured-clone@1.3.0': {}
+
+  '@vectorize-io/vectorize-client@0.4.0': {}
 
   acorn@8.15.0: {}
 

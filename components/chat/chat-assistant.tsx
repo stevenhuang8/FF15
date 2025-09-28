@@ -130,24 +130,11 @@ const MemoizedMessage = memo(({
   isStreaming: boolean;
   children?: React.ReactNode;
 }) => {
-  // Separate reasoning and text parts
-  const reasoningParts = message.parts?.filter((p: any) => p.type === 'reasoning') || [];
+  // Only handle text parts (reasoning is now handled as separate flow items)
   const textParts = message.parts?.filter((p: any) => p.type === 'text') || [];
 
   return (
     <>
-      {/* Render reasoning parts as collapsible blocks */}
-      {reasoningParts.map((part: any, i: number) => (
-        <Reasoning
-          key={`${message.id}-reasoning-${i}`}
-          isStreaming={isStreaming}
-          className="mb-4"
-        >
-          <ReasoningTrigger />
-          <ReasoningContent>{part.text || ''}</ReasoningContent>
-        </Reasoning>
-      ))}
-
       {/* Render text message if there's content */}
       {(textParts.length > 0 || message.content) && (
         <Message from={message.role}>
@@ -259,50 +246,62 @@ export default function ChatAssistant({ api }: ChatAssistantProps) {
                 // Add more tool mappings as needed
               };
 
-              // Extract flow items (messages + tool calls) in chronological order
+              // Extract flow items (messages + tool calls + reasoning) in chronological order
               const flowItems: Array<{
-                type: 'message' | 'tool-call';
+                type: 'message' | 'tool-call' | 'reasoning';
                 data: any;
                 id: string;
                 messageId?: string;
                 displayName?: string;
+                partIndex?: number;
               }> = [];
 
               messages.forEach((message) => {
-                // Extract tool calls from this message and add as separate flow items
-                const toolParts = (message as any).parts?.filter((part: any) =>
-                  part.type?.startsWith('tool-')
-                ) || [];
+                // Process all parts in chronological order
+                const parts = (message as any).parts || [];
 
-                toolParts.forEach((toolPart: any, index: number) => {
-                  // Generate unique key using multiple fallback strategies
-                  const uniqueId = toolPart.toolCallId ||
-                                  toolPart.id ||
-                                  `${message.id}-${toolPart.type}-${index}`;
+                parts.forEach((part: any, partIndex: number) => {
+                  if (part.type?.startsWith('tool-')) {
+                    // Handle tool calls
+                    const uniqueId = part.toolCallId ||
+                                    part.id ||
+                                    `${message.id}-${part.type}-${partIndex}`;
 
-                  flowItems.push({
-                    type: 'tool-call',
-                    data: toolPart,
-                    id: `tool-${uniqueId}`,
-                    messageId: message.id,
-                    displayName: toolDisplayNames[toolPart.type] || toolPart.type
-                  });
+                    flowItems.push({
+                      type: 'tool-call',
+                      data: part,
+                      id: `tool-${uniqueId}`,
+                      messageId: message.id,
+                      displayName: toolDisplayNames[part.type] || part.type,
+                      partIndex
+                    });
+                  } else if (part.type === 'reasoning') {
+                    // Handle reasoning parts
+                    flowItems.push({
+                      type: 'reasoning',
+                      data: part,
+                      id: `reasoning-${message.id}-${partIndex}`,
+                      messageId: message.id,
+                      partIndex
+                    });
+                  }
+                  // text parts will be handled in the message itself
                 });
 
-                // Add the message itself (with tool calls removed from parts)
-                const messageWithoutTools = {
+                // Add the message itself (with only text parts and legacy content)
+                const messageWithTextOnly = {
                   ...message,
-                  parts: (message as any).parts?.filter((part: any) =>
-                    !part.type?.startsWith('tool-')
-                  ) || []
+                  parts: parts.filter((part: any) =>
+                    part.type === 'text' || !part.type // include parts without type for backward compatibility
+                  )
                 };
 
-                // Only add message if it has content (text, reasoning, or legacy content)
-                const hasContent = messageWithoutTools.parts.length > 0 || !!(message as any).content;
+                // Only add message if it has content (text or legacy content)
+                const hasContent = messageWithTextOnly.parts.length > 0 || !!(message as any).content;
                 if (hasContent) {
                   flowItems.push({
                     type: 'message',
-                    data: messageWithoutTools,
+                    data: messageWithTextOnly,
                     id: `message-${message.id}`
                   });
                 }
@@ -320,13 +319,8 @@ export default function ChatAssistant({ api }: ChatAssistantProps) {
                   // Render tool call status block
                   const toolPart = item.data as RAGToolUIPart;
 
-                  // Determine if tool should be expanded based on state
-                  // Expand during execution, collapse when complete
-                  const shouldBeExpanded = toolPart.state === "input-streaming" ||
-                                          toolPart.state === "input-available" ||
-                                          toolPart.state === "output-error";
-                  // Explicitly collapse when output is available (tool completed successfully)
-                  // This ensures tools auto-collapse after completion
+                  // Tools are collapsed by default
+                  const shouldBeExpanded = false;
 
                   return (
                     <div key={item.id} className="w-full mb-4">
@@ -335,6 +329,21 @@ export default function ChatAssistant({ api }: ChatAssistantProps) {
                         displayName={item.displayName || toolPart.type}
                         shouldBeExpanded={shouldBeExpanded}
                       />
+                    </div>
+                  );
+                } else if (item.type === 'reasoning') {
+                  // Render reasoning block
+                  const reasoningPart = item.data;
+
+                  return (
+                    <div key={item.id} className="w-full mb-4">
+                      <Reasoning
+                        isStreaming={isLoading}
+                        className="mb-4"
+                      >
+                        <ReasoningTrigger />
+                        <ReasoningContent>{reasoningPart.text || ''}</ReasoningContent>
+                      </Reasoning>
                     </div>
                   );
                 } else {

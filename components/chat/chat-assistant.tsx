@@ -1,6 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, type ToolUIPart } from "ai";
 import { useState } from "react";
 import {
   Conversation,
@@ -49,9 +50,41 @@ type ChatMessage = {
   }>;
 };
 
-export default function ChatAssistant() {
+// RAG Tool types for proper TypeScript support
+type RAGToolInput = {
+  query: string;
+};
+
+type RAGToolOutput = {
+  context: string;
+  sources: Array<{
+    sourceType: 'url';
+    id: string;
+    url: string;
+    title: string;
+  }>;
+  chatSources?: Array<{
+    url: string;
+    title: string;
+  }>;
+};
+
+type RAGToolUIPart = ToolUIPart<{
+  retrieveKnowledgeBase: {
+    input: RAGToolInput;
+    output: RAGToolOutput;
+  };
+}>;
+
+interface ChatAssistantProps {
+  api?: string;
+}
+
+export default function ChatAssistant({ api }: ChatAssistantProps = {}) {
   const [input, setInput] = useState("");
-  const { messages, status, sendMessage } = useChat();
+  const { messages, status, sendMessage } = useChat({
+    transport: api ? new DefaultChatTransport({ api }) : undefined,
+  });
 
   const handleSubmit = async (
     message: { text?: string; files?: any[] },
@@ -81,71 +114,184 @@ export default function ChatAssistant() {
               description="Ask me anything and I'll help you out!"
             />
           ) : (
-            messages.map((message) => (
-              <div key={message.id} className="w-full">
-                <Message from={message.role}>
-                  <MessageContent>
-                    {(message as any).parts?.map((part: any, i: number) => {
-                      switch (part.type) {
-                        case "text":
-                          return (
-                            <span key={`${message.id}-${i}`}>{part.text}</span>
-                          );
-                        case "reasoning":
-                          return (
-                            <span key={`${message.id}-${i}`}>{part.text}</span>
-                          );
-                        default:
-                          return null;
-                      }
-                    }) ||
-                      (message as any).content ||
-                      ""}
-                  </MessageContent>
-                </Message>
+            (() => {
+              // Tool display name mapping
+              const toolDisplayNames: Record<string, string> = {
+                'tool-retrieveKnowledgeBase': 'Knowledge Base Search',
+                // Add more tool mappings as needed
+              };
 
-                {/* Display tool calls and sources from parts */}
-                {(message as any).parts?.map((part: any, i: number) => {
-                  if (part.type === "tool" && part.result) {
-                    return (
-                      <div className="mt-4" key={`tool-${message.id}-${i}`}>
-                        <Tool defaultOpen={true}>
-                          <ToolHeader
-                            type={`tool-${part.toolName}`}
-                            state="output-available"
-                          />
-                          <ToolContent>
-                            {part.args && <ToolInput input={part.args} />}
-                            {part.result && (
-                              <ToolOutput
-                                output={part.result}
-                                errorText={undefined}
-                              />
-                            )}
-                          </ToolContent>
-                        </Tool>
-                      </div>
-                    );
-                  }
-                  if (part.type === "source-url") {
-                    return (
-                      <div className="mt-4" key={`source-${message.id}-${i}`}>
-                        <Sources>
-                          <SourcesTrigger count={1} />
-                          <SourcesContent>
-                            <Source
-                              href={part.url}
-                              title={part.title || part.url}
+              // Extract flow items (messages + tool calls) in chronological order
+              const flowItems: Array<{
+                type: 'message' | 'tool-call';
+                data: any;
+                id: string;
+                messageId?: string;
+                displayName?: string;
+              }> = [];
+
+              messages.forEach((message) => {
+                // Extract tool calls from this message and add as separate flow items
+                const toolParts = (message as any).parts?.filter((part: any) =>
+                  part.type?.startsWith('tool-')
+                ) || [];
+
+                toolParts.forEach((toolPart: any, index: number) => {
+                  // Generate unique key using multiple fallback strategies
+                  const uniqueId = toolPart.toolCallId ||
+                                  toolPart.id ||
+                                  `${message.id}-${toolPart.type}-${index}`;
+
+                  flowItems.push({
+                    type: 'tool-call',
+                    data: toolPart,
+                    id: `tool-${uniqueId}`,
+                    messageId: message.id,
+                    displayName: toolDisplayNames[toolPart.type] || toolPart.type
+                  });
+                });
+
+                // Add the message itself (with tool calls removed from parts)
+                const messageWithoutTools = {
+                  ...message,
+                  parts: (message as any).parts?.filter((part: any) =>
+                    !part.type?.startsWith('tool-')
+                  ) || []
+                };
+
+                // Only add message if it has content (text, reasoning, or legacy content)
+                const hasContent = messageWithoutTools.parts.length > 0 || !!(message as any).content;
+                if (hasContent) {
+                  flowItems.push({
+                    type: 'message',
+                    data: messageWithoutTools,
+                    id: `message-${message.id}`
+                  });
+                }
+              });
+
+              // Check for duplicate keys and log errors only
+              const allIds = flowItems.map(item => item.id);
+              const duplicateIds = allIds.filter((id, index) => allIds.indexOf(id) !== index);
+              if (duplicateIds.length > 0) {
+                console.error(`🚨 Duplicate keys found:`, duplicateIds);
+              }
+
+              return flowItems.map((item, itemIndex) => {
+                if (item.type === 'tool-call') {
+                  // Render tool call status block
+                  const toolPart = item.data as RAGToolUIPart;
+
+                  // Determine if tool should be expanded based on state
+                  const shouldBeExpanded = toolPart.state === "input-streaming" ||
+                                          toolPart.state === "input-available" ||
+                                          toolPart.state === "output-error";
+
+                  return (
+                    <div key={item.id} className="w-full mb-4">
+                      <Tool defaultOpen={shouldBeExpanded}>
+                        <ToolHeader
+                          type={item.displayName || toolPart.type}
+                          state={toolPart.state}
+                        />
+                        <ToolContent>
+                          {toolPart.input && (
+                            <ToolInput input={toolPart.input} />
+                          )}
+                          {toolPart.output && (
+                            <ToolOutput
+                              output={toolPart.output}
+                              errorText={toolPart.errorText}
                             />
-                          </SourcesContent>
-                        </Sources>
-                      </div>
-                    );
-                  }
-                  return null;
-                })}
-              </div>
-            ))
+                          )}
+                          {toolPart.state === "input-streaming" && (
+                            <div className="text-sm text-muted-foreground p-2">
+                              🔍 {item.displayName}...
+                            </div>
+                          )}
+                        </ToolContent>
+                      </Tool>
+                    </div>
+                  );
+                } else {
+                  // Render regular message
+                  const message = item.data;
+
+                  return (
+                    <div key={item.id} className="w-full">
+                      <Message from={message.role}>
+                        <MessageContent>
+                          {message.parts?.map((part: any, i: number) => {
+                            switch (part.type) {
+                              case "text":
+                                return (
+                                  <span key={`${item.id}-${i}`}>{part.text}</span>
+                                );
+                              case "reasoning":
+                                return (
+                                  <span key={`${item.id}-${i}`}>{part.text}</span>
+                                );
+                              default:
+                                return null;
+                            }
+                          }) ||
+                            message.content ||
+                            ""}
+                        </MessageContent>
+                      </Message>
+
+                      {/* Display sources - only for assistant messages with actual text content */}
+                      {message.role === 'assistant' && (() => {
+                        // Strict check for actual text content - don't show sources without real text
+                        const hasRealTextContent = (
+                          message.parts?.some((p: any) => p.type === 'text' && p.text?.trim()) ||
+                          (message.content?.trim())
+                        );
+
+                        if (!hasRealTextContent) {
+                          // No real text content = never show sources (prevents showing below tool calls)
+                          return null;
+                        }
+
+                        // Look backward through flow items for recent tool results
+                        let toolSources: any[] = [];
+
+                        for (let i = itemIndex - 1; i >= 0; i--) {
+                          const prevItem = flowItems[i];
+                          if (prevItem.type === 'tool-call') {
+                            const toolData = prevItem.data as RAGToolUIPart;
+                            if (toolData.type === 'tool-retrieveKnowledgeBase' && toolData.output?.sources) {
+                              toolSources = toolData.output.sources;
+                              break;
+                            }
+                          }
+                        }
+
+                        if (toolSources.length > 0) {
+                          return (
+                            <div className="mt-4">
+                              <Sources>
+                                <SourcesTrigger count={toolSources.length} />
+                                <SourcesContent>
+                                  {toolSources.map((source: any, i: number) => (
+                                    <Source
+                                      key={`source-${item.id}-${i}`}
+                                      href={source.url}
+                                      title={source.title}
+                                    />
+                                  ))}
+                                </SourcesContent>
+                              </Sources>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  );
+                }
+              });
+            })()
           )}
         </ConversationContent>
       </Conversation>

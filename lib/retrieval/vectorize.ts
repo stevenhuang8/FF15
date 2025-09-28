@@ -20,7 +20,7 @@ export class VectorizeService {
 
   async retrieveDocuments(
     question: string,
-    numResults: number = 5
+    numResults: number = 2
   ): Promise<VectorizeDocument[]> {
     try {
       const response = await this.pipelinesApi.retrieveDocuments({
@@ -39,8 +39,17 @@ export class VectorizeService {
       if (error?.response?.text) {
         console.error("Error details:", await error.response.text());
       }
-      console.error("Using env vars - Org:", this.organizationId, "Pipeline:", this.pipelineId);
-      throw new Error(`Failed to retrieve documents from Vectorize: ${error?.message || 'Unknown error'}`);
+      console.error(
+        "Using env vars - Org:",
+        this.organizationId,
+        "Pipeline:",
+        this.pipelineId
+      );
+      throw new Error(
+        `Failed to retrieve documents from Vectorize: ${
+          error?.message || "Unknown error"
+        }`
+      );
     }
   }
 

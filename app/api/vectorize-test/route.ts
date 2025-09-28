@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, numResults = 5 } = await request.json();
+    const { query, numResults = 2 } = await request.json();
 
     if (!query) {
       return new Response("Query is required", { status: 400 });

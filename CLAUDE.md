@@ -33,9 +33,13 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 
 - `app/` - Next.js App Router pages and API routes
 - `app/api/chat/` - AI chat endpoint using streaming `streamText()`
+- `app/api/rag-agent/` - RAG-enabled agent endpoint with knowledge base access
 - `components/chat/` - Chat interface components
 - `components/ai-elements/` - Vercel AI Elements components
 - `components/agent/` - Agent configuration (system prompts)
+  - `prompt.ts` - Default travel agent system prompt
+  - `rag-prompt.ts` - RAG agent system prompt for Catan and Peruvian restaurant
+- `components/agent/tools/` - AI SDK tools for agent capabilities (knowledge base retrieval, etc.)
 - `components/ui/` - shadcn/ui components
 - `lib/retrieval/` - Vectorize RAG service for document retrieval
 - `lib/utils.ts` - Utility functions including `cn()` for className merging
@@ -48,6 +52,7 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 - Vectorize RAG integration via `VectorizeService` in `/lib/retrieval/`
 - System instructions defined in `components/agent/prompt.ts` (travel agent theme)
 - API route at `/api/chat` expects `{ messages: Array }` and returns streaming text
+- RAG-enabled agent at `/api/rag-agent` includes `retrieveKnowledgeBase` tool for knowledge base access
 - use useChat for all streaming handling (read the doc first, always, before writing any streaming code: https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat)
 - **CRITICAL**: `sendMessage()` from useChat ONLY accepts UIMessage-compatible objects: `sendMessage({ text: "message" })`
 - **NEVER** use `sendMessage("string")` - this does NOT work and will cause runtime errors
@@ -55,6 +60,269 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 - Tool calls and sources are supported in the response format
 - Requires environment variables in `.env.local`
 - Reference: https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#streamtext
+
+### AI SDK Tools
+
+**CRITICAL REQUIREMENT**: You MUST read the AI SDK tools documentation before working with tools: https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling
+
+**ALSO REQUIRED**: Read the manual agent loop cookbook for advanced patterns: https://ai-sdk.dev/cookbook/node/manual-agent-loop
+
+This documentation is essential for understanding:
+- How tools are called by language models
+- Tool execution flow and lifecycle
+- Tool choice strategies (`auto`, `required`, `none`, specific tool)
+- Multi-step tool calling with `stopWhen` and `stepCountIs()`
+- Tool call monitoring and error handling
+- Manual agent loops for complex tool workflows
+
+#### Data Streaming with Tools
+
+**IMPORTANT**: Always read the AI SDK data streaming documentation when working with custom data parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data
+
+##### Streaming Sources and Custom Data
+
+When tools return structured data (like sources from RAG retrieval), the data is automatically streamed as part of the tool call response:
+
+```typescript
+// Tool that returns sources
+export const retrieveKnowledgeBase = tool({
+  description: 'Search the knowledge base',
+  inputSchema: z.object({
+    query: z.string(),
+  }),
+  execute: async ({ query }) => {
+    // ... retrieve documents ...
+    return {
+      context: 'Document content here',
+      sources: [
+        { url: 'https://example.com', title: 'Source 1', snippet: 'Preview text' }
+      ]
+    };
+  },
+});
+```
+
+The returned data is automatically included in the tool call result and streamed to the client.
+
+**Frontend Access Pattern**:
+```typescript
+// Extract sources from tool results in the UI
+const ragToolCalls = message.parts?.filter(
+  part => part.type === "tool" && part.toolName === "retrieveKnowledgeBase" && part.result?.sources
+);
+
+const sources = ragToolCalls?.flatMap(tool => tool.result?.sources || []) || [];
+```
+
+**Chat Component with Custom API Endpoint**:
+```typescript
+// Use ChatAssistant with custom API endpoint
+<ChatAssistant api="/api/rag-agent" />
+
+// ChatAssistant component supports optional api prop
+interface ChatAssistantProps {
+  api?: string;
+}
+
+const { messages, status, sendMessage } = useChat({
+  transport: api ? new DefaultChatTransport({ api }) : undefined,
+});
+```
+
+##### Types of Streamable Data
+
+1. **Tool Results**: Automatically streamed when tools return data
+2. **Sources**: Can be included in tool results for RAG implementations
+3. **Custom Data Parts**: Can be streamed using `streamData` for more complex scenarios
+
+##### Best Practices
+
+- Keep tool return types simple to avoid TypeScript deep instantiation errors
+- Include sources directly in tool results for automatic streaming
+- Use the `toUIMessageStreamResponse()` method for proper client compatibility
+- Tool results are automatically included in the message parts array
+
+#### Current AI SDK API (v5.0.44+)
+
+**IMPORTANT**: The AI SDK API has evolved. Always use current patterns:
+
+##### Multi-Step Tool Execution with `stepCountIs()`
+
+```typescript
+const result = streamText({
+  model: openai("gpt-5"),
+  messages: modelMessages,
+  tools: { retrieveKnowledgeBase },
+  stopWhen: stepCountIs(10), // CURRENT API - replaces deprecated maxSteps
+});
+```
+
+##### Tool Choice Strategies
+
+Control how and when tools are called using the `toolChoice` parameter:
+
+```typescript
+const result = streamText({
+  model: openai("gpt-5"),
+  messages: modelMessages,
+  tools: { retrieveKnowledgeBase },
+  toolChoice: 'auto', // Options: 'auto', 'required', 'none', or specific tool name
+  stopWhen: stepCountIs(5),
+});
+```
+
+- **`auto` (default)**: Model decides whether to call tools based on context
+- **`required`**: Model must call at least one tool before responding
+- **`none`**: Disable all tool calls
+- **Specific tool**: Force a particular tool to be called
+
+##### Converting Tool Results to Source Data Parts
+
+**Current Limitation (v5.0.44)**: The `response.steps` API is not yet available in the current version. Sources are currently displayed from tool results embedded in message parts.
+
+```typescript
+// Current working approach (v5.0.44)
+const result = streamText({
+  model: openai("gpt-5"),
+  messages: modelMessages,
+  tools: { retrieveKnowledgeBase },
+  stopWhen: stepCountIs(10),
+});
+
+return result.toUIMessageStreamResponse();
+
+// Frontend extracts sources from tool results in message parts
+// See ChatAssistant component for implementation
+```
+
+**Future Implementation** (when `response.steps` becomes available):
+```typescript
+const stream = createUIMessageStream({
+  execute: async ({ writer }) => {
+    const result = streamText({
+      model: openai("gpt-5"),
+      messages: modelMessages,
+      tools: { retrieveKnowledgeBase },
+      stopWhen: stepCountIs(10),
+    });
+
+    writer.merge(result.toUIMessageStream());
+
+    // This will work when response.steps is available
+    const response = await result.response;
+    for (const step of response.steps || []) {
+      if (step.toolResults) {
+        for (const toolResult of step.toolResults) {
+          if (toolResult.toolName === 'retrieveKnowledgeBase') {
+            for (const source of toolResult.output?.sources || []) {
+              writer.write({
+                type: 'source-url', // Correct type for current version
+                url: source.url,
+                title: source.title
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+});
+```
+
+#### Tool Implementation Guidelines
+
+- **Location**: All agent tools are in `/components/agent/tools/`
+- **Structure**: Each tool uses AI SDK's `tool()` function with:
+  - `description`: Clear explanation of the tool's purpose (influences tool selection)
+  - `inputSchema`: Zod schema defining input parameters
+  - `execute`: Async function performing the tool's action
+- **Current Tools**:
+  - `retrieveKnowledgeBase`: Searches the Vectorize knowledge base for relevant information
+  - `web_search`: OpenAI's web search tool for current information
+
+#### Creating New Tools
+
+When creating new tools:
+1. Create a new file in `/components/agent/tools/`
+2. Use the `tool()` function from `ai` package
+3. Define clear Zod input schemas with descriptions
+4. Implement error handling in the `execute` function
+5. Export from `/components/agent/tools/index.ts`
+6. Add the tool to the appropriate API route's tools configuration
+
+Example:
+```typescript
+import { tool } from 'ai';
+import { z } from 'zod';
+
+export const myTool = tool({
+  description: 'Clear description of what the tool does',
+  inputSchema: z.object({
+    param: z.string().describe('What this parameter is for')
+  }),
+  execute: async ({ param }) => {
+    // Tool implementation with logging
+    console.log(`🔧 Tool called with param: ${param}`);
+    return { result: 'data' };
+  }
+});
+```
+
+#### Tool Call Monitoring
+
+Add logging in tools to monitor execution:
+
+```typescript
+// In tool execute function
+execute: async ({ query }) => {
+  console.log(`🔍 Tool executing with query: "${query}"`);
+  try {
+    const result = await performAction(query);
+    console.log(`✅ Tool completed successfully`);
+    return result;
+  } catch (error) {
+    console.error(`💥 Tool error:`, error);
+    throw error;
+  }
+}
+```
+
+#### Tool Call UI Indicators
+
+Display tool execution states using AI Elements:
+
+```typescript
+// In ChatAssistant component
+{message.parts?.filter(part => part.type === "tool").map((part, i) => {
+  const toolState = part.result
+    ? "output-available"
+    : part.input
+      ? "input-available"
+      : "input-streaming";
+
+  return (
+    <Tool defaultOpen={true}>
+      <ToolHeader type={`tool-${part.toolName}`} state={toolState} />
+      <ToolContent>
+        {part.input && <ToolInput input={part.input} />}
+        {part.result && <ToolOutput output={part.result} />}
+        {toolState === "input-streaming" && (
+          <div>🔍 Searching knowledge base...</div>
+        )}
+      </ToolContent>
+    </Tool>
+  );
+})}
+```
+
+#### Tool Call Best Practices
+
+- **Clear Descriptions**: Write detailed descriptions to help the model choose the right tool
+- **Specific Input Schemas**: Use descriptive Zod schemas with `.describe()` for parameters
+- **Error Handling**: Always wrap tool execution in try-catch blocks
+- **Logging**: Add console logging to track tool usage and debug issues
+- **Return Structure**: Keep return types simple to avoid TypeScript complexity
+- **UI Feedback**: Always show tool execution state using AI Elements components
 
 ### Chat Architecture
 
@@ -82,6 +350,12 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 
 - shadcn/ui: `pnpm dlx shadcn@latest add [component-name]`
 - AI Elements: `pnpm dlx ai-elements@latest` (adds all components)
+
+### RAG Source Streaming
+
+**CRITICAL REQUIREMENT**: You MUST read the AI SDK streaming data documentation before implementing RAG source citations: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data
+
+This documentation is essential for understanding how to properly stream source data parts from RAG tools to the frontend.
 
 ## Environment Setup
 

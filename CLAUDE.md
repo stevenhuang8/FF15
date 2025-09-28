@@ -343,8 +343,10 @@ Display tool execution states using AI Elements:
 - **AI Elements** from Vercel:
   - Pre-built components for AI applications
   - Located in `components/ai-elements/`
-  - Key components: Conversation, Message, PromptInput, Sources, Tool
-  - Supports tool calls, sources, and rich message formatting
+  - Key components: Conversation, Message, PromptInput, Sources, Tool, Reasoning
+  - Supports tool calls, sources, reasoning tokens, and rich message formatting
+  - Reasoning component documentation: https://ai-sdk.dev/elements/components/reasoning#reasoning
+  - Reasoning tokens automatically display as collapsible blocks with duration tracking
 
 ### Adding Components
 

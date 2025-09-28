@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type ToolUIPart } from "ai";
-import { useState } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -29,6 +29,11 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
+import {
+  Reasoning,
+  ReasoningTrigger,
+  ReasoningContent,
+} from "@/components/ai-elements/reasoning";
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -80,11 +85,144 @@ interface ChatAssistantProps {
   api?: string;
 }
 
-export default function ChatAssistant({ api }: ChatAssistantProps = {}) {
+// Memoized components for better performance
+const MemoizedToolCall = memo(({
+  toolPart,
+  displayName,
+  shouldBeExpanded
+}: {
+  toolPart: RAGToolUIPart;
+  displayName: string;
+  shouldBeExpanded: boolean;
+}) => (
+  <Tool defaultOpen={shouldBeExpanded}>
+    <ToolHeader
+      type={displayName as any}
+      state={toolPart.state}
+    />
+    <ToolContent>
+      {toolPart.state === "input-streaming" && (
+        <div className="text-sm text-muted-foreground p-2">
+          🔍 {displayName}...
+        </div>
+      )}
+      {toolPart.input && toolPart.state !== "input-streaming" && (
+        <ToolInput input={toolPart.input} />
+      )}
+      {toolPart.output && (
+        <ToolOutput
+          output={toolPart.output}
+          errorText={toolPart.errorText}
+        />
+      )}
+    </ToolContent>
+  </Tool>
+));
+
+MemoizedToolCall.displayName = 'MemoizedToolCall';
+
+const MemoizedMessage = memo(({
+  message,
+  isStreaming,
+  children
+}: {
+  message: any;
+  isStreaming: boolean;
+  children?: React.ReactNode;
+}) => {
+  // Separate reasoning and text parts
+  const reasoningParts = message.parts?.filter((p: any) => p.type === 'reasoning') || [];
+  const textParts = message.parts?.filter((p: any) => p.type === 'text') || [];
+
+  return (
+    <>
+      {/* Render reasoning parts as collapsible blocks */}
+      {reasoningParts.map((part: any, i: number) => (
+        <Reasoning
+          key={`${message.id}-reasoning-${i}`}
+          isStreaming={isStreaming}
+          className="mb-4"
+        >
+          <ReasoningTrigger />
+          <ReasoningContent>{part.text || ''}</ReasoningContent>
+        </Reasoning>
+      ))}
+
+      {/* Render text message if there's content */}
+      {(textParts.length > 0 || message.content) && (
+        <Message from={message.role}>
+          <MessageContent>
+            {textParts.map((part: any, i: number) => (
+              <span key={`${message.id}-text-${i}`}>{part.text}</span>
+            )) || message.content || ""}
+          </MessageContent>
+          {children}
+        </Message>
+      )}
+    </>
+  );
+});
+
+MemoizedMessage.displayName = 'MemoizedMessage';
+
+export default function ChatAssistant({ api }: ChatAssistantProps) {
   const [input, setInput] = useState("");
-  const { messages, status, sendMessage } = useChat({
+  const { messages: rawMessages, status, sendMessage } = useChat({
     transport: api ? new DefaultChatTransport({ api }) : undefined,
   });
+
+  // Debounced messages for performance - update every 30ms instead of every token
+  const [debouncedMessages, setDebouncedMessages] = useState(rawMessages);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastRawMessagesRef = useRef(rawMessages);
+
+  useEffect(() => {
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Check for critical events that need immediate updates
+    const needsImmediateUpdate = () => {
+      // Update immediately when streaming stops
+      if (status !== 'streaming' && lastRawMessagesRef.current !== rawMessages) {
+        return true;
+      }
+
+      // Update immediately when tool calls appear/change
+      const hasNewToolCalls = rawMessages.some(msg =>
+        (msg as any).parts?.some((p: any) => p.type?.startsWith('tool-')) &&
+        !lastRawMessagesRef.current.some(oldMsg => oldMsg.id === msg.id)
+      );
+
+      if (hasNewToolCalls) {
+        return true;
+      }
+
+      return false;
+    };
+
+    if (needsImmediateUpdate()) {
+      // Immediate update for critical events
+      setDebouncedMessages(rawMessages);
+      lastRawMessagesRef.current = rawMessages;
+    } else {
+      // Debounced update for regular streaming
+      debounceTimerRef.current = setTimeout(() => {
+        setDebouncedMessages(rawMessages);
+        lastRawMessagesRef.current = rawMessages;
+      }, 30);
+    }
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [rawMessages, status]);
+
+  // Use debounced messages for rendering
+  const messages = debouncedMessages;
 
   const handleSubmit = async (
     message: { text?: string; files?: any[] },
@@ -183,65 +321,28 @@ export default function ChatAssistant({ api }: ChatAssistantProps = {}) {
                   const toolPart = item.data as RAGToolUIPart;
 
                   // Determine if tool should be expanded based on state
+                  // Expand during execution, collapse when complete
                   const shouldBeExpanded = toolPart.state === "input-streaming" ||
                                           toolPart.state === "input-available" ||
                                           toolPart.state === "output-error";
+                  // Explicitly collapse when output is available (tool completed successfully)
+                  // This ensures tools auto-collapse after completion
 
                   return (
                     <div key={item.id} className="w-full mb-4">
-                      <Tool defaultOpen={shouldBeExpanded}>
-                        <ToolHeader
-                          type={item.displayName || toolPart.type}
-                          state={toolPart.state}
-                        />
-                        <ToolContent>
-                          {toolPart.input && (
-                            <ToolInput input={toolPart.input} />
-                          )}
-                          {toolPart.output && (
-                            <ToolOutput
-                              output={toolPart.output}
-                              errorText={toolPart.errorText}
-                            />
-                          )}
-                          {toolPart.state === "input-streaming" && (
-                            <div className="text-sm text-muted-foreground p-2">
-                              🔍 {item.displayName}...
-                            </div>
-                          )}
-                        </ToolContent>
-                      </Tool>
+                      <MemoizedToolCall
+                        toolPart={toolPart}
+                        displayName={item.displayName || toolPart.type}
+                        shouldBeExpanded={shouldBeExpanded}
+                      />
                     </div>
                   );
                 } else {
                   // Render regular message
                   const message = item.data;
 
-                  return (
-                    <div key={item.id} className="w-full">
-                      <Message from={message.role}>
-                        <MessageContent>
-                          {message.parts?.map((part: any, i: number) => {
-                            switch (part.type) {
-                              case "text":
-                                return (
-                                  <span key={`${item.id}-${i}`}>{part.text}</span>
-                                );
-                              case "reasoning":
-                                return (
-                                  <span key={`${item.id}-${i}`}>{part.text}</span>
-                                );
-                              default:
-                                return null;
-                            }
-                          }) ||
-                            message.content ||
-                            ""}
-                        </MessageContent>
-                      </Message>
-
-                      {/* Display sources - only for assistant messages with actual text content */}
-                      {message.role === 'assistant' && (() => {
+                  // Generate sources component
+                  const sourcesComponent = message.role === 'assistant' && (() => {
                         // Strict check for actual text content - don't show sources without real text
                         const hasRealTextContent = (
                           message.parts?.some((p: any) => p.type === 'text' && p.text?.trim()) ||
@@ -286,7 +387,12 @@ export default function ChatAssistant({ api }: ChatAssistantProps = {}) {
                           );
                         }
                         return null;
-                      })()}
+                      })();
+
+                  return (
+                    <div key={item.id} className="w-full">
+                      <MemoizedMessage message={message} isStreaming={isLoading} />
+                      {sourcesComponent}
                     </div>
                   );
                 }

@@ -12,12 +12,18 @@ export async function POST(request: NextRequest) {
       return new Response("Messages array is required", { status: 400 });
     }
 
-
     const modelMessages = convertToModelMessages(messages);
 
     const result = streamText({
       model: openai("gpt-5"),
       system: RAG_SYSTEM_INSTRUCTIONS,
+      providerOptions: {
+        openai: {
+          reasoning_effort: "low",
+          textVerbosity: "low",
+          reasoningSummary: "detailed",
+        },
+      },
       messages: modelMessages,
       stopWhen: stepCountIs(10),
       tools: {

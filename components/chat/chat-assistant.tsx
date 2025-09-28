@@ -34,6 +34,7 @@ import {
   ReasoningTrigger,
   ReasoningContent,
 } from "@/components/ai-elements/reasoning";
+import { Response } from "@/components/ai-elements/response";
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -139,9 +140,9 @@ const MemoizedMessage = memo(({
       {(textParts.length > 0 || message.content) && (
         <Message from={message.role}>
           <MessageContent>
-            {textParts.map((part: any, i: number) => (
-              <span key={`${message.id}-text-${i}`}>{part.text}</span>
-            )) || message.content || ""}
+            <Response>
+              {textParts.map((part: any, i: number) => part.text).join('') || message.content || ""}
+            </Response>
           </MessageContent>
           {children}
         </Message>

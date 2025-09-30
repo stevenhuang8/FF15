@@ -240,7 +240,9 @@ const stream = createUIMessageStream({
   - `retrieveKnowledgeBase`: Searches the Vectorize knowledge base for relevant information
   - `web_search`: OpenAI's web search tool for current information
 
-#### Creating New Tools
+#### Creating New Tools and Agents
+
+**IMPORTANT**: When building more agent and tools functionality, ALWAYS follow the existing patterns in `/components/agent/` and `/components/agent/tools/` folders. Study the existing implementations before creating new ones.
 
 When creating new tools:
 1. Create a new file in `/components/agent/tools/`
@@ -249,6 +251,12 @@ When creating new tools:
 4. Implement error handling in the `execute` function
 5. Export from `/components/agent/tools/index.ts`
 6. Add the tool to the appropriate API route's tools configuration
+
+When creating new agents:
+1. Follow the pattern established in `/app/api/rag-agent/route.ts`
+2. Create new prompts in `/components/agent/` following the structure of `prompt.ts` and `rag-prompt.ts`
+3. Use the same streaming patterns and error handling as existing agents
+4. Always include proper tool configurations and import from `/components/agent/tools`
 
 Example:
 ```typescript

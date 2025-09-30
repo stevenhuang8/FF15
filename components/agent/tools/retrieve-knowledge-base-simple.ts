@@ -2,8 +2,6 @@ import { tool } from "ai";
 import { z } from "zod";
 import { VectorizeService } from "@/lib/retrieval/vectorize";
 
-// Simplified version to avoid type complexity
-// Display Name: "Knowledge Base Search" (mapped in frontend)
 export const retrieveKnowledgeBaseSimple = tool({
   description:
     "Search the knowledge base for information about Catan board game rules/strategies or Peruvian restaurant menu/dishes",
@@ -41,7 +39,7 @@ export const retrieveKnowledgeBaseSimple = tool({
       const toolResult = {
         context: vectorizeService.formatDocumentsForContext(documents),
         sources: aiSdkSources,
-        chatSources: chatSources, // Keep for backwards compatibility
+        chatSources: chatSources,
       };
 
       return toolResult;

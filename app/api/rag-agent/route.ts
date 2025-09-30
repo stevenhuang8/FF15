@@ -25,13 +25,12 @@ export async function POST(request: NextRequest) {
         },
       },
       messages: modelMessages,
-      stopWhen: stepCountIs(10),
+      stopWhen: stepCountIs(10), // this is the part that makes this an agent!!!!
       tools: {
         retrieveKnowledgeBase: retrieveKnowledgeBaseSimple,
       },
     });
 
-    // Return the stream - sources will be in tool results and extracted by frontend
     return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);

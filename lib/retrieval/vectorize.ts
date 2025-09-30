@@ -1,5 +1,5 @@
 import { Configuration, PipelinesApi } from "@vectorize-io/vectorize-client";
-import type { VectorizeDocument, VectorizeResponse } from "@/types/vectorize";
+import type { VectorizeDocument } from "@/types/vectorize";
 import type { ChatSource } from "@/types/chat";
 
 export class VectorizeService {

@@ -10,6 +10,9 @@ export default function Home() {
         <Link href="/rag-agent" className="text-center">
           RAG Agent
         </Link>
+        <Link href="/agent-with-mcp-tools" className="text-center">
+          Agent with MCP Tools
+        </Link>
       </div>
     </div>
   );

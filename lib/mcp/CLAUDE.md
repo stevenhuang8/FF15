@@ -1,0 +1,37 @@
+# MCP (Model Context Protocol) Integration
+
+This directory contains MCP client abstractions for connecting to remote MCP servers.
+
+## Critical Rule
+
+**ALWAYS fetch and read the provided documentation before implementing any MCP-related code.**
+
+## Documentation
+
+### Firecrawl MCP Server
+https://docs.firecrawl.dev/mcp-server
+
+This documentation covers:
+- Firecrawl's hosted MCP server implementation
+- Available tools (scrape, batch_scrape, search, crawl, extract, deep_research, generate_llmstxt)
+- Authentication and configuration
+- SSE transport setup
+- API key management
+
+### AI SDK MCP Tools Integration
+https://ai-sdk.dev/cookbook/node/mcp-tools
+
+This documentation covers:
+- How to create MCP clients with AI SDK
+- SSE, stdio, and HTTP transport options
+- Tool retrieval and combination patterns
+- Integration with `generateText()` and `streamText()`
+- Best practices for MCP client management
+
+## Usage Pattern
+
+1. Read the documentation links above before making changes
+2. Follow the existing patterns in `/lib/mcp/client/`
+3. Use SSE transport for hosted MCP servers
+4. Always handle errors and add logging
+5. Load credentials from environment variables

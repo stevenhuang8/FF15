@@ -26,11 +26,28 @@ export async function POST(request: NextRequest) {
       `🔧 Agent has access to ${Object.keys(tools).length} Firecrawl MCP tools`
     );
 
+    // Wrap tools to log when they are called
+    const wrappedTools = Object.fromEntries(
+      Object.entries(tools).map(([toolName, toolDef]) => [
+        toolName,
+        {
+          ...toolDef,
+          execute: async (args: any) => {
+            console.log(`\n🔧 Tool called: ${toolName}`);
+            console.log(`   Input:`, JSON.stringify(args, null, 2));
+            const result = await toolDef.execute(args);
+            console.log(`   Output:`, JSON.stringify(result, null, 2));
+            return result;
+          },
+        },
+      ])
+    );
+
     const result = streamText({
       model: openai("gpt-5"),
       system: WEB_SCRAPER_SYSTEM_INSTRUCTIONS,
       messages: modelMessages,
-      tools,
+      tools: wrappedTools,
       stopWhen: stepCountIs(10),
       providerOptions: {
         openai: {

@@ -35,3 +35,10 @@ This documentation covers:
 3. Use SSE transport for hosted MCP servers
 4. Always handle errors and add logging
 5. Load credentials from environment variables
+
+## Important Tips
+
+- **Never disconnect MCP clients during streaming**: When using `streamText()`, tools may be called during the stream. Closing the client prematurely causes "closed client" errors.
+- **Singleton pattern for connection reuse**: Use the singleton `getFirecrawlMCPClient()` to maintain persistent connections across requests for better performance.
+- **SSE URL format**: Firecrawl's SSE endpoint is `https://mcp.firecrawl.dev/{API_KEY}/v2/sse` (not `/v2/mcp`).
+- **Type compatibility**: Use `Record<string, any>` for tool return types to ensure compatibility with AI SDK's `streamText()`.

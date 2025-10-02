@@ -4,12 +4,12 @@ import { VectorizeService } from "@/lib/retrieval/vectorize";
 
 export const retrieveKnowledgeBaseSimple = tool({
   description:
-    "Search the knowledge base for information about Catan board game rules/strategies or Peruvian restaurant menu/dishes",
+    "Search the knowledge base for information about cooking techniques, recipes, ingredients, and culinary knowledge",
   inputSchema: z.object({
     query: z
       .string()
       .describe(
-        "Search query for Catan board game or Peruvian restaurant information"
+        "Search query for cooking techniques, recipes, ingredients, or culinary information"
       ),
   }),
   execute: async ({ query }) => {

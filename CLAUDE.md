@@ -37,8 +37,8 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 - `components/chat/` - Chat interface components
 - `components/ai-elements/` - Vercel AI Elements components
 - `components/agent/` - Agent configuration (system prompts)
-  - `prompt.ts` - Default travel agent system prompt
-  - `rag-prompt.ts` - RAG agent system prompt for Catan and Peruvian restaurant
+  - `prompt.ts` - Default Cooking and Recipes agent system prompt
+  - `rag-prompt.ts` - RAG agent system prompt for cooking and recipes
 - `components/agent/tools/` - AI SDK tools for agent capabilities (knowledge base retrieval, etc.)
 - `components/ui/` - shadcn/ui components
 - `lib/retrieval/` - Vectorize RAG service for document retrieval

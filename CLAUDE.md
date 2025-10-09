@@ -361,6 +361,59 @@ Display tool execution states using AI Elements:
 - shadcn/ui: `pnpm dlx shadcn@latest add [component-name]`
 - AI Elements: `pnpm dlx ai-elements@latest` (adds all components)
 
+### Generative User Interfaces
+
+**CRITICAL REQUIREMENT**: When building UI or frontend components, especially those that involve streaming AI-generated content, you MUST read the Generative UI documentation: https://ai-sdk.dev/docs/ai-sdk-ui/generative-user-interfaces
+
+This documentation is essential for understanding:
+- How to stream React components from the server to the client
+- Using `streamUI()` for generating interactive UI components
+- Server Actions with `createStreamableUI()` and `createStreamableValue()`
+- Client-side rendering of streamed components
+- Best practices for generative UI patterns
+
+#### Generative UI Patterns
+
+The AI SDK supports streaming React components as part of AI responses, enabling dynamic, interactive UIs:
+
+```typescript
+// Server-side with streamUI()
+import { streamUI } from 'ai/rsc'
+
+const result = await streamUI({
+  model: openai('gpt-4'),
+  messages,
+  text: ({ content }) => <div>{content}</div>,
+  tools: {
+    showRecipe: {
+      description: 'Display a recipe',
+      parameters: z.object({
+        title: z.string(),
+        ingredients: z.array(z.string()),
+      }),
+      generate: async ({ title, ingredients }) => {
+        return <RecipeCard title={title} ingredients={ingredients} />
+      }
+    }
+  }
+})
+```
+
+#### When to Use Generative UI
+
+- **Interactive Components**: When AI responses should include buttons, forms, or interactive elements
+- **Rich Data Visualization**: For charts, graphs, or complex data displays
+- **Dynamic Content**: When UI structure depends on AI reasoning
+- **Multi-Step Workflows**: For guided experiences with branching logic
+
+#### Best Practices
+
+- Keep generated components server-side compatible
+- Use `'use client'` directive only when client interactivity is required
+- Stream loading states for better UX
+- Handle errors gracefully in generated components
+- Consider accessibility in all generated UI elements
+
 ### RAG Source Streaming
 
 **CRITICAL REQUIREMENT**: You MUST read the AI SDK streaming data documentation before implementing RAG source citations: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data
@@ -378,6 +431,18 @@ VECTORIZE_ORG_ID=your_org_id
 VECTORIZE_PIPELINE_ID=your_pipeline_id
 ```
 
+## Supabase Documentation
+
+Official Supabase documentation: https://supabase.com/docs
+
+Key references for integration:
+- **Getting Started with Next.js**: https://supabase.com/docs/guides/getting-started/quickstarts/nextjs
+- **Authentication (Server-Side)**: https://supabase.com/docs/guides/auth/server-side/nextjs
+- **Database Overview**: https://supabase.com/docs/guides/database/overview
+- **Storage**: https://supabase.com/docs/guides/storage
+- **Row Level Security (RLS)**: https://supabase.com/docs/guides/auth/row-level-security
+- **TypeScript Support**: https://supabase.com/docs/guides/api/generating-types
+
 ## Critical Rules for useChat Implementation
 
 **NEVER EVER DO THIS:**
@@ -389,3 +454,7 @@ VECTORIZE_PIPELINE_ID=your_pipeline_id
 - ✅ `sendMessage({ text: "message content" })` - Only UIMessage-compatible objects work
 - ✅ Access message content via `message.parts` array
 - ✅ Read AI SDK docs before implementing any useChat functionality
+
+## Task Master AI Instructions
+**Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
+@./.taskmaster/CLAUDE.md

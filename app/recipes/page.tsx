@@ -3,7 +3,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { RecipeList } from "@/components/recipe/recipe-list";
 import { RecipeFilters, type RecipeFiltersState } from "@/components/recipe/recipe-filters";
-import { getRecipes } from "@/lib/supabase/recipes";
+import { RecipeDetailDialog } from "@/components/recipe/recipe-detail-dialog";
+import { EditRecipeDialog } from "@/components/recipe/edit-recipe-dialog";
+import { DeleteRecipeDialog } from "@/components/recipe/delete-recipe-dialog";
+import { getRecipes, updateRecipe, deleteRecipe } from "@/lib/supabase/recipes";
 import { createClient } from "@/lib/supabase/client";
 import { filterRecipes, sortRecipes, extractAllTags } from "@/lib/recipe-filters";
 import { Button } from "@/components/ui/button";
@@ -22,6 +25,12 @@ export default function RecipesPage() {
     selectedTags: [],
     sortBy: "date-desc",
   });
+
+  // Dialog states
+  const [selectedRecipe, setSelectedRecipe] = useState<SavedRecipe | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     loadRecipes();
@@ -57,19 +66,105 @@ export default function RecipesPage() {
     }
   }
 
-  const handleEdit = (recipe: SavedRecipe) => {
-    // TODO: Implement edit functionality in next subtask
-    console.log('Edit recipe:', recipe.id);
-  };
-
-  const handleDelete = async (recipe: SavedRecipe) => {
-    // TODO: Implement delete with confirmation in next subtask
-    console.log('Delete recipe:', recipe.id);
-  };
-
   const handleRecipeClick = (recipe: SavedRecipe) => {
-    // TODO: Implement recipe detail view in next subtask
-    console.log('View recipe:', recipe.id);
+    setSelectedRecipe(recipe);
+    setDetailDialogOpen(true);
+  };
+
+  const handleEdit = (recipe: SavedRecipe) => {
+    setSelectedRecipe(recipe);
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = (recipe: SavedRecipe) => {
+    setSelectedRecipe(recipe);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleSaveEdit = async (updates: Partial<SavedRecipe>) => {
+    if (!selectedRecipe) return;
+
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        alert('Please log in to edit recipes');
+        return;
+      }
+
+      const { error: updateError } = await updateRecipe(
+        selectedRecipe.id,
+        user.id,
+        updates
+      );
+
+      if (updateError) {
+        console.error('Error updating recipe:', updateError);
+        alert('Failed to update recipe');
+        return;
+      }
+
+      // Update local state
+      setRecipes((prev) =>
+        prev.map((recipe) =>
+          recipe.id === selectedRecipe.id
+            ? { ...recipe, ...updates }
+            : recipe
+        )
+      );
+
+      console.log('✅ Recipe updated successfully');
+    } catch (error) {
+      console.error('Exception updating recipe:', error);
+      alert('Failed to update recipe');
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedRecipe) return;
+
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        alert('Please log in to delete recipes');
+        return;
+      }
+
+      const { error: deleteError } = await deleteRecipe(
+        selectedRecipe.id,
+        user.id
+      );
+
+      if (deleteError) {
+        console.error('Error deleting recipe:', deleteError);
+        alert('Failed to delete recipe');
+        return;
+      }
+
+      // Update local state
+      setRecipes((prev) => prev.filter((recipe) => recipe.id !== selectedRecipe.id));
+      setDeleteDialogOpen(false);
+      setDetailDialogOpen(false);
+      setSelectedRecipe(null);
+
+      console.log('✅ Recipe deleted successfully');
+    } catch (error) {
+      console.error('Exception deleting recipe:', error);
+      alert('Failed to delete recipe');
+    }
+  };
+
+  const handleEditFromDetail = () => {
+    setDetailDialogOpen(false);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteFromDetail = () => {
+    setDetailDialogOpen(false);
+    setDeleteDialogOpen(true);
   };
 
   // Extract available tags from all recipes
@@ -148,6 +243,31 @@ export default function RecipesPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onRecipeClick={handleRecipeClick}
+      />
+
+      {/* Recipe Detail Dialog */}
+      <RecipeDetailDialog
+        recipe={selectedRecipe}
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        onEdit={handleEditFromDetail}
+        onDelete={handleDeleteFromDetail}
+      />
+
+      {/* Edit Recipe Dialog */}
+      <EditRecipeDialog
+        recipe={selectedRecipe}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSave={handleSaveEdit}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteRecipeDialog
+        recipe={selectedRecipe}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

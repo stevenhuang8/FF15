@@ -41,6 +41,9 @@ import {
   ReasoningContent,
 } from "@/components/ai-elements/reasoning";
 import { Response } from "@/components/ai-elements/response";
+import { SaveRecipeButton } from "@/components/recipe/save-recipe-button";
+import { isRecipeContent, getMessageTextContent } from "@/lib/recipe-detection";
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -654,9 +657,24 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
                         return null;
                       })();
 
+                  // Check if this assistant message contains a recipe
+                  const messageText = getMessageTextContent(message);
+                  const hasRecipe = message.role === 'assistant' && isRecipeContent(messageText);
+
                   return (
                     <div key={item.id} className="w-full">
-                      <MemoizedMessage message={message} isStreaming={isLoading} />
+                      <MemoizedMessage message={message} isStreaming={isLoading}>
+                        {/* Show Save Recipe button for assistant messages containing recipes */}
+                        {hasRecipe && !isLoading && (
+                          <div className="mt-3">
+                            <SaveRecipeButton
+                              messageId={message.id}
+                              messageContent={messageText}
+                              conversationId={currentConversationId || undefined}
+                            />
+                          </div>
+                        )}
+                      </MemoizedMessage>
                       {sourcesComponent}
                     </div>
                   );

@@ -154,13 +154,13 @@ export default function ConversationList({
             {filteredConversations.map((conv) => (
               <div
                 key={conv.id}
-                onClick={() => onSelectConversation(conv.id)}
                 className={`
-                  p-4 cursor-pointer transition-colors hover:bg-accent
+                  relative cursor-pointer transition-colors hover:bg-accent
                   ${conv.id === currentConversationId ? 'bg-accent' : ''}
                 `}
+                onClick={() => onSelectConversation(conv.id)}
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center pr-12 pl-4 py-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-lg">{getAgentIcon(conv.agent_type)}</span>
@@ -172,16 +172,16 @@ export default function ConversationList({
                       {conv.updated_at && formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true })}
                     </p>
                   </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={(e) => handleDeleteClick(conv.id, e)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-8 top-1/2 -translate-y-1/2 h-8 w-8 z-10"
+                  onClick={(e) => handleDeleteClick(conv.id, e)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>

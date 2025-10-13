@@ -22,25 +22,25 @@ export default function ChatHistoryPage() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* Sidebar with conversation list */}
-      <div className="w-80 border-r bg-muted/30">
+      <aside className="w-80 flex-shrink-0 border-r bg-muted/30 overflow-y-auto relative z-20">
         <ConversationList
           onSelectConversation={handleSelectConversation}
           currentConversationId={selectedConversationId}
           onNewConversation={handleNewConversation}
           refreshTrigger={refreshTrigger}
         />
-      </div>
+      </aside>
 
       {/* Main chat area */}
-      <div className="flex-1">
+      <main className="flex-1 bg-background relative">
         <ChatAssistant
           api="/api/rag-agent"
           conversationId={selectedConversationId}
           onConversationCreated={handleConversationCreated}
         />
-      </div>
+      </main>
     </div>
   );
 }

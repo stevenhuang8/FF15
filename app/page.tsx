@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { MessageSquare } from "lucide-react";
 
 export default function Home() {
   return (
@@ -16,6 +17,15 @@ export default function Home() {
 
       {/* Dark overlay for readability */}
       <div className="absolute inset-0 bg-black/50" />
+
+      {/* Chat History Button - Top Left */}
+      <Link
+        href="/chat-history"
+        className="absolute top-6 left-6 z-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-2 text-white hover:bg-white/20 transition-all duration-200 flex items-center gap-2 group"
+      >
+        <MessageSquare className="h-5 w-5" />
+        <span className="font-medium">Chat History</span>
+      </Link>
 
       {/* Content */}
       <div className="relative z-10 flex flex-col gap-6 p-8">

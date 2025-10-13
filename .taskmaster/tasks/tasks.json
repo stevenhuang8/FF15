@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "Install and Configure Supabase Foundation",
         "description": "Set up Supabase project, install dependencies, and configure database schema for cooking and fitness data persistence",
         "details": "Install @supabase/supabase-js, @supabase/ssr packages using pnpm. Create Supabase project and configure environment variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY). Create database schema with tables: users (extends auth.users), conversations, messages, saved_recipes, ingredients, workout_plans, meal_logs, health_metrics, exercises (reference table), and set up Row Level Security policies. Configure Supabase client with SSR helpers for Next.js App Router following Supabase v2+ patterns.",
@@ -14,7 +14,7 @@
         "updatedAt": "2025-10-08T03:02:37.486Z"
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Implement Authentication System with User Profiles",
         "description": "Build complete email/password authentication with user profiles supporting dietary preferences and fitness goals",
         "details": "Create auth middleware for Next.js App Router using Supabase SSR helpers. Build LoginForm and SignupForm components using shadcn/ui (Input, Button, Card components). Create /login and /signup pages. Add UserMenu dropdown component with profile and logout options. Create user profile management with fields for dietary restrictions, allergies, fitness goals, and daily calorie targets. Implement password reset functionality. Add auth state management and protected route handling. Follow Supabase Auth best practices for session management.",
@@ -92,7 +92,7 @@
         "updatedAt": "2025-10-09T03:58:47.570Z"
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "Add Chat History Persistence and Management",
         "description": "Implement automatic conversation and message saving with conversation history browser",
         "details": "Modify ChatAssistant component to save messages automatically to Supabase after each user/assistant exchange. Create conversation management system with auto-generated titles from first user message. Build ConversationList component for browsing chat history with timestamps and agent type indicators. Add conversation search functionality. Implement conversation deletion with confirmation. Ensure tool calls and RAG sources are stored as structured JSON data. Maintain current chat streaming performance by making saves asynchronous. Add conversation continuation from history.",
@@ -105,7 +105,7 @@
         "subtasks": []
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "Build Recipe Saving and Collection Management",
         "description": "Create recipe extraction, saving, and organization system with search and filtering capabilities",
         "details": "Add SaveRecipeButton component that appears on assistant messages containing recipes. Implement recipe extraction logic to parse title, ingredients, instructions, and nutritional information from AI responses. Create RecipeCard and RecipeList components using shadcn/ui for browsing saved recipes. Build recipe search and filtering by ingredients, tags, and date saved. Add personal notes functionality for recipes. Link saved recipes back to source conversations. Implement recipe editing capabilities and deletion with confirmation.",
@@ -114,11 +114,75 @@
         "dependencies": [
           "3"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create SaveRecipeButton component for AI message responses",
+            "description": "Build a component that appears on assistant messages containing recipes and triggers recipe extraction and saving workflow",
+            "dependencies": [],
+            "details": "Create SaveRecipeButton component using shadcn/ui Button. Add recipe detection logic to identify messages containing recipes. Position button appropriately within message UI. Handle click events to trigger recipe extraction. Add loading states and success/error feedback. Integrate with existing chat message components.\n<info added on 2025-10-13T00:44:34.599Z>\nLooking at the codebase to understand the current implementation and provide context for the completed work...Based on the codebase analysis, I can see the SaveRecipeButton component implementation is complete and well-integrated. Here's the update text for the subtask:\n\nSUBTASK 4.1 COMPLETED: SaveRecipeButton component successfully implemented and integrated with chat system. Component creates interactive button that appears on assistant messages containing recipes, with proper state management (default/saving/saved states) using shadcn/ui Button and Lucide icons. Recipe detection system uses score-based algorithm (threshold: 5 points) analyzing keywords, cooking verbs, structured lists, and measurements. Integration in ChatAssistant component at line 668-675 conditionally renders button when message role is assistant, isRecipeContent returns true, and streaming is complete. TypeScript compilation passes with no errors. Component ready for actual recipe extraction logic implementation in subtask 4.2. All files properly integrated: /lib/recipe-detection.ts for utilities, /components/recipe/save-recipe-button.tsx for component, and chat-assistant.tsx for integration.\n</info added on 2025-10-13T00:44:34.599Z>",
+            "status": "done",
+            "testStrategy": "Test button appearance on recipe-containing messages, verify click handling and visual feedback, test integration with chat UI",
+            "updatedAt": "2025-10-13T00:44:52.128Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement recipe extraction logic from AI responses",
+            "description": "Build system to parse and extract recipe data including title, ingredients, instructions, and nutritional information from AI message content",
+            "dependencies": [
+              1
+            ],
+            "details": "Create recipe parsing utilities to extract structured data from natural language AI responses. Handle various recipe formats and edge cases. Extract title, ingredients list, step-by-step instructions, cooking time, servings, and nutritional information. Implement fallback mechanisms for incomplete data. Add validation for extracted recipe data completeness.\n<info added on 2025-10-13T00:51:34.491Z>\nI'll analyze the codebase first to understand the current recipe implementation, then update the subtask details based on your implementation report.**IMPLEMENTATION COMPLETED:** Successfully built comprehensive recipe extraction and saving system with full TypeScript validation. Core architecture includes:\n\n**Type System (types/recipe.ts):** Complete interfaces for RecipeIngredient, RecipeInstruction, RecipeNutrition, RecipeMetadata, ExtractedRecipe, SavedRecipe, and RecipeValidation with 0-100% completeness scoring.\n\n**Extraction Engine (lib/recipe-extraction.ts):** Advanced natural language parsing supporting multiple recipe formats - bulleted/numbered lists, markdown headers, natural language patterns. Handles measurements with fractions (1/2, 3/4), ingredient notes in parentheses, dietary tag detection (vegan, keto, gluten-free), cooking method identification, time parsing with multiple formats, and automatic completeness validation.\n\n**Database Layer (lib/supabase/recipes.ts):** Full CRUD operations with time conversion utilities, search functionality, and structured JSON storage for ingredients/instructions.\n\n**UI Integration (components/recipe/save-recipe-button.tsx):** Smart button with four states (default/saving/saved/error), automatic user authentication check, real-time validation feedback, and conversation linking.\n\n**Extraction Features:** Pattern matching for various formats, measurement parsing with fractional support, ingredient notes extraction, section header detection, dietary restriction auto-tagging, cooking method detection, completeness scoring system, and robust validation with detailed error reporting.\n\n**Database Schema Compatibility:** Converts time strings to minutes, stores structured ingredient data as JSON, maintains user/conversation relationships, and supports nutritional data storage.\n\nReady for integration testing with live AI responses. All TypeScript checks pass. System handles edge cases gracefully with fallback mechanisms and provides detailed logging for debugging.\n</info added on 2025-10-13T00:51:34.491Z>",
+            "status": "done",
+            "testStrategy": "Test extraction accuracy with various AI response formats, verify handling of incomplete recipes, validate extracted data structure",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-13T00:51:47.951Z"
+          },
+          {
+            "id": 3,
+            "title": "Build RecipeCard and RecipeList components with shadcn/ui",
+            "description": "Create UI components for displaying individual recipes and collections of saved recipes with proper styling and layout",
+            "dependencies": [
+              2
+            ],
+            "details": "Design and implement RecipeCard component showing recipe image, title, cooking time, servings, and key ingredients. Create RecipeList component with grid/list view options. Use shadcn/ui Card, Badge, and other components for consistent styling. Add recipe preview functionality and action buttons for edit/delete. Implement responsive design for mobile and desktop.\n<info added on 2025-10-13T01:32:16.883Z>\nI need to analyze the codebase to understand the current implementation and provide a comprehensive update for this subtask. Let me explore the project structure and examine the implemented components.Successfully completed implementation of RecipeCard, RecipeList components and /recipes page with the following achievements:\n\nIMPLEMENTATION COMPLETE ✅\n- RecipeCard component (components/recipe/recipe-card.tsx) with comprehensive recipe display including title, difficulty badge, metadata (time/servings/calories), tags with overflow handling, ingredient preview, and action buttons\n- RecipeList component (components/recipe/recipe-list.tsx) featuring grid/list view toggle, responsive layouts, loading states, and empty state messaging\n- Recipes page (app/recipes/page.tsx) with Supabase integration, authentication checks, error handling, and navigation\n- Enhanced navbar (components/layout/navbar.tsx) with authenticated user navigation links\n\nTECHNICAL IMPLEMENTATION\n- Proper TypeScript integration with Supabase types from Tables<'saved_recipes'>\n- Responsive design: mobile (1 col) → tablet (2 cols) → desktop (3 cols)\n- Component reusability with proper prop interfaces and callback handling\n- shadcn/ui components (Card, Badge, Button) for consistent styling\n- Lucide React icons for visual enhancement\n- Event delegation with stopPropagation for nested click handling\n\nUI/UX FEATURES\n- Grid/List view toggle with visual feedback\n- Hover effects and transitions\n- Loading spinners and empty states\n- Tag badge overflow with \"+X more\" indicators  \n- Recipe metadata display with appropriate icons\n- Action buttons positioned in card footer with border separation\n\nCODEBASE INTEGRATION\n- Follows existing project patterns and component structure\n- Integrates with Supabase authentication flow\n- Maintains consistency with existing UI styling\n- Properly handles error states and loading scenarios\n- TODO placeholders prepared for next subtasks (edit/delete/detail view)\n\nAll TypeScript checks pass successfully. Components are ready for integration with recipe saving functionality and future enhancement features.\n</info added on 2025-10-13T01:32:16.883Z>",
+            "status": "done",
+            "testStrategy": "Test recipe card display with various data, verify responsive layout, test list view toggling and recipe interactions",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-13T01:34:15.317Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement recipe search and filtering system",
+            "description": "Build comprehensive search and filtering capabilities for saved recipes by ingredients, tags, date saved, and other criteria",
+            "dependencies": [
+              3
+            ],
+            "details": "Create search input component with real-time filtering. Implement ingredient-based search with partial matching. Add tag filtering system with multi-select capability. Build date range filtering for recipes saved within specific periods. Create sorting options by date, name, cooking time, and rating. Add search result highlighting and empty state handling.",
+            "status": "in-progress",
+            "testStrategy": "Test search functionality with various queries, verify filtering accuracy, test multiple filter combinations, validate search performance",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-13T01:34:16.877Z"
+          },
+          {
+            "id": 5,
+            "title": "Add personal notes and recipe management features",
+            "description": "Implement functionality for adding personal notes to recipes, editing recipe content, and managing recipe collections with deletion confirmation",
+            "dependencies": [
+              4
+            ],
+            "details": "Create recipe notes system allowing users to add personal cooking tips and modifications. Implement recipe editing interface for updating ingredients, instructions, and metadata. Build recipe deletion with confirmation dialog. Add recipe sharing capabilities and export options. Create recipe collections/folders for organization. Link saved recipes back to source conversations for context.",
+            "status": "pending",
+            "testStrategy": "Test notes functionality, verify recipe editing and saving, test deletion confirmation flow, validate conversation linking",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2025-10-13T01:34:16.877Z"
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Implement Ingredient Inventory and Image Processing",
         "description": "Build ingredient management system with manual entry and AI-powered image extraction from receipts and photos",
         "details": "Create IngredientInput component for manual ingredient entry with auto-complete. Build IngredientUpload component using Next.js Image and Supabase Storage for receipt/ingredient photo uploads. Integrate OpenAI GPT-4 Vision API for ingredient extraction from images. Create IngredientList and IngredientCard components for inventory management with quantities, units, and expiry dates. Implement CRUD operations for ingredients with proper form validation. Add ingredient usage tracking when cooking recipes. Configure Supabase Storage buckets with proper security policies for image uploads.",
@@ -131,7 +195,7 @@
         "subtasks": []
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "Build AI-Powered Recipe Generation from Available Ingredients",
         "description": "Create intelligent recipe suggestion system based on user's ingredient inventory with missing ingredient detection",
         "details": "Create RecipeFromIngredientsButton component that triggers AI recipe generation. Build AI SDK tool for recipe generation based on available ingredients, integrating with existing ingredient inventory. Implement missing ingredient detection and display. Create contextual recipe suggestions that consider dietary restrictions and preferences from user profile. Add recipe difficulty and time estimation. Integrate with existing chat system to provide recipe suggestions through conversation interface. Ensure generated recipes include nutritional information and cooking instructions.",
@@ -144,7 +208,7 @@
         "subtasks": []
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "Implement Calorie Tracking and Nutrition Management",
         "description": "Build comprehensive meal logging system with automatic calorie and macro calculation using nutrition database integration",
         "details": "Create MealLogForm component for logging meals with food search and auto-complete functionality. Integrate nutrition database API (USDA FoodData Central or Nutritionix) for automatic calorie and macro calculation. Build CalorieTracker widget showing daily intake vs targets with progress indicators. Create NutritionBreakdown component for recipes showing macros (protein, carbs, fats) and calories. Implement daily/weekly/monthly calorie summaries with charts using recharts or similar. Add net calorie calculation (intake - expenditure from workouts). Build nutrition dashboard with macro ring progress indicators.",
@@ -157,7 +221,7 @@
         "subtasks": []
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "Create Workout Management and Exercise Tracking System",
         "description": "Build workout plan saving, exercise logging, and fitness tracking capabilities with AI-powered recommendations",
         "details": "Create SaveWorkoutButton for extracting workout plans from AI responses. Build WorkoutCard and WorkoutList components for workout library management. Create exercise reference database with common exercises and calorie burn rates. Implement WorkoutLogForm for logging completed sessions with sets, reps, duration, and intensity. Build AI tool for workout recommendations based on fitness goals and preferences. Create workout categorization (strength, cardio, flexibility, HIIT) with filtering. Add workout history tracking and progress analytics. Calculate calorie expenditure based on exercise type and user data.",
@@ -170,7 +234,7 @@
         "subtasks": []
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "Build Health Metrics and Progress Tracking Dashboard",
         "description": "Create comprehensive health monitoring system with progress visualization and goal tracking",
         "details": "Create HealthMetricsForm for logging weight, body measurements, and body fat percentage. Build ProgressChart component using recharts for weight, calories, and workout trends over time. Implement FitnessGoalSetter for setting and tracking goals (weight targets, calorie goals, exercise frequency). Create progress snapshots system for periodic data collection. Build comprehensive fitness dashboard showing overview of all health metrics, progress toward goals, and recent activity. Add goal progress indicators and milestone celebrations. Implement data export functionality for personal records.",
@@ -183,7 +247,7 @@
         "subtasks": []
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Add Dietary Restrictions and Smart Substitution System",
         "description": "Implement comprehensive dietary management with AI-powered ingredient substitutions and allergy-safe recipe filtering",
         "details": "Create DietaryPreferencesForm in user profile for managing restrictions and allergies. Build AI tool for context-aware ingredient substitutions that considers recipe type (baking vs cooking vs raw). Create SubstitutionSuggestion component showing AI-generated alternatives with explanations. Implement automatic recipe filtering to exclude allergens. Build substitution history tracking for learning user preferences. Create substitution database/knowledge base with common replacements. Add 'Why this substitution?' explanations from AI. Integrate with recipe generation to suggest allergen-free alternatives automatically.",
@@ -198,15 +262,12 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-09T03:58:47.572Z",
+      "lastModified": "2025-10-13T01:34:16.878Z",
       "taskCount": 10,
-      "completedCount": 2,
+      "completedCount": 3,
       "tags": [
         "master"
-      ],
-      "created": "2025-10-10T01:33:36.736Z",
-      "description": "Tasks for master context",
-      "updated": "2025-10-10T03:50:44.685Z"
+      ]
     }
   }
 }

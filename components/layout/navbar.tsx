@@ -14,6 +14,28 @@ export async function Navbar() {
             <span className="font-bold">Food & Fitness AI</span>
           </Link>
         </div>
+        {user && (
+          <nav className="flex items-center space-x-6 text-sm font-medium">
+            <Link
+              href="/"
+              className="transition-colors hover:text-foreground/80 text-foreground/60"
+            >
+              Chat
+            </Link>
+            <Link
+              href="/chat-history"
+              className="transition-colors hover:text-foreground/80 text-foreground/60"
+            >
+              History
+            </Link>
+            <Link
+              href="/recipes"
+              className="transition-colors hover:text-foreground/80 text-foreground/60"
+            >
+              Recipes
+            </Link>
+          </nav>
+        )}
         <div className="flex flex-1 items-center justify-end space-x-2">
           {user ? (
             <UserMenu user={user} />

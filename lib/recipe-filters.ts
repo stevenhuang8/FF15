@@ -13,7 +13,7 @@ export function filterRecipes(
 ): SavedRecipe[] {
   let filtered = [...recipes];
 
-  // Search filter (title, ingredients, description)
+  // Search filter (title, ingredients, notes)
   if (filters.searchQuery) {
     const query = filters.searchQuery.toLowerCase().trim();
     filtered = filtered.filter((recipe) => {
@@ -22,8 +22,8 @@ export function filterRecipes(
         return true;
       }
 
-      // Search in description
-      if (recipe.description?.toLowerCase().includes(query)) {
+      // Search in notes
+      if (recipe.notes?.toLowerCase().includes(query)) {
         return true;
       }
 
@@ -69,16 +69,18 @@ export function filterRecipes(
 
       try {
         const recipeDate = parseISO(recipe.created_at);
+        const fromDate = filters.dateRange!.from!;
 
         if (filters.dateRange!.to) {
           // Both from and to dates specified
+          const toDate = filters.dateRange!.to;
           return isWithinInterval(recipeDate, {
-            start: filters.dateRange!.from,
-            end: filters.dateRange!.to,
+            start: fromDate,
+            end: toDate,
           });
         } else {
           // Only from date specified
-          return recipeDate >= filters.dateRange!.from;
+          return recipeDate >= fromDate;
         }
       } catch (error) {
         console.error('Error parsing recipe date:', error);

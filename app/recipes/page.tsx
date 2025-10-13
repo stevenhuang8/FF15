@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { RecipeList } from "@/components/recipe/recipe-list";
+import { RecipeFilters, type RecipeFiltersState } from "@/components/recipe/recipe-filters";
 import { getRecipes } from "@/lib/supabase/recipes";
 import { createClient } from "@/lib/supabase/client";
+import { filterRecipes, sortRecipes, extractAllTags } from "@/lib/recipe-filters";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
 import Link from "next/link";
@@ -15,6 +17,11 @@ export default function RecipesPage() {
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<RecipeFiltersState>({
+    searchQuery: "",
+    selectedTags: [],
+    sortBy: "date-desc",
+  });
 
   useEffect(() => {
     loadRecipes();
@@ -65,6 +72,35 @@ export default function RecipesPage() {
     console.log('View recipe:', recipe.id);
   };
 
+  // Extract available tags from all recipes
+  const availableTags = useMemo(() => extractAllTags(recipes), [recipes]);
+
+  // Apply filters and sorting
+  const filteredAndSortedRecipes = useMemo(() => {
+    const filtered = filterRecipes(recipes, filters);
+    const sorted = sortRecipes(filtered, filters.sortBy);
+    return sorted;
+  }, [recipes, filters]);
+
+  const handleFiltersChange = (newFilters: RecipeFiltersState) => {
+    setFilters(newFilters);
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      searchQuery: "",
+      selectedTags: [],
+      sortBy: "date-desc",
+    });
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters =
+    filters.searchQuery !== "" ||
+    filters.selectedTags.length > 0 ||
+    filters.dateRange?.from !== undefined ||
+    filters.sortBy !== "date-desc";
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* Header */}
@@ -72,7 +108,9 @@ export default function RecipesPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">My Recipes</h1>
           <p className="text-muted-foreground mt-1">
-            {recipes.length} {recipes.length === 1 ? 'recipe' : 'recipes'} saved
+            {filteredAndSortedRecipes.length === recipes.length
+              ? `${recipes.length} ${recipes.length === 1 ? 'recipe' : 'recipes'} saved`
+              : `Showing ${filteredAndSortedRecipes.length} of ${recipes.length} recipes`}
           </p>
         </div>
         <Link href="/">
@@ -90,10 +128,23 @@ export default function RecipesPage() {
         </div>
       )}
 
+      {/* Filters */}
+      {!error && !isLoading && recipes.length > 0 && (
+        <div className="mb-6">
+          <RecipeFilters
+            availableTags={availableTags}
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            onReset={handleResetFilters}
+          />
+        </div>
+      )}
+
       {/* Recipe List */}
       <RecipeList
-        recipes={recipes}
+        recipes={filteredAndSortedRecipes}
         isLoading={isLoading}
+        hasActiveFilters={hasActiveFilters}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onRecipeClick={handleRecipeClick}

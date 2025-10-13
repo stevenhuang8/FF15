@@ -11,6 +11,7 @@ type SavedRecipe = Tables<'saved_recipes'>;
 interface RecipeListProps {
   recipes: SavedRecipe[];
   isLoading?: boolean;
+  hasActiveFilters?: boolean;
   onEdit?: (recipe: SavedRecipe) => void;
   onDelete?: (recipe: SavedRecipe) => void;
   onRecipeClick?: (recipe: SavedRecipe) => void;
@@ -19,6 +20,7 @@ interface RecipeListProps {
 export function RecipeList({
   recipes,
   isLoading,
+  hasActiveFilters = false,
   onEdit,
   onDelete,
   onRecipeClick,
@@ -37,11 +39,12 @@ export function RecipeList({
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <p className="text-lg font-medium text-muted-foreground mb-2">
-          No recipes saved yet
+          {hasActiveFilters ? 'No recipes match your filters' : 'No recipes saved yet'}
         </p>
         <p className="text-sm text-muted-foreground max-w-md">
-          Start a conversation with the AI and ask for a recipe. When you see a recipe,
-          click the "Save Recipe" button to add it to your collection.
+          {hasActiveFilters
+            ? 'Try adjusting your search query or filters to see more results.'
+            : 'Start a conversation with the AI and ask for a recipe. When you see a recipe, click the "Save Recipe" button to add it to your collection.'}
         </p>
       </div>
     );

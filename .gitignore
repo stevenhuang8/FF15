@@ -61,6 +61,7 @@ node_modules/
 # OS specific
 
 # Task Master AI - state and generated files
+.taskmaster
 .taskmaster/tasks/
 .taskmaster/state.json
 .taskmaster/config.json

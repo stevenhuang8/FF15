@@ -62,6 +62,7 @@ node_modules/
 
 # Task Master AI - state and generated files
 .taskmaster
+.taskmaster/CLAUDE.md
 .taskmaster/tasks/
 .taskmaster/state.json
 .taskmaster/config.json

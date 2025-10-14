@@ -60,6 +60,13 @@ node_modules/
 *.sw?
 # OS specific
 
-# Task files
-# tasks.json
-# tasks/ 
+# Task Master AI - state and generated files
+.taskmaster/tasks/
+.taskmaster/state.json
+.taskmaster/config.json
+.taskmaster/AGENT.md
+.taskmaster/docs/
+.taskmaster/templates/
+.taskmaster/reports/
+.mcp.json
+# Keep .taskmaster/CLAUDE.md committed for project context 

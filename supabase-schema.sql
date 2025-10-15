@@ -96,6 +96,7 @@ CREATE TABLE public.ingredients (
   unit TEXT, -- 'cups', 'tbsp', 'grams', 'oz', etc.
   category TEXT, -- 'dairy', 'meat', 'produce', 'pantry', etc.
   expiry_date DATE,
+  notes TEXT,
 
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

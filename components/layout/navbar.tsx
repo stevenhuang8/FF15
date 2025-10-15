@@ -29,6 +29,12 @@ export async function Navbar() {
               History
             </Link>
             <Link
+              href="/ingredients"
+              className="transition-colors hover:text-foreground/80 text-foreground/60"
+            >
+              Pantry
+            </Link>
+            <Link
               href="/recipes"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >

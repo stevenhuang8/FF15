@@ -42,6 +42,7 @@ import {
 } from "@/components/ai-elements/reasoning";
 import { Response } from "@/components/ai-elements/response";
 import { SaveRecipeButton } from "@/components/recipe/save-recipe-button";
+import { RecipeFromIngredientsButton } from "@/components/recipe/recipe-from-ingredients-button";
 import { isRecipeContent, getMessageTextContent } from "@/lib/recipe-detection";
 
 type ChatMessage = {
@@ -690,7 +691,13 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
           <PromptInputBody>
             <PromptInputTextarea placeholder="What would you like to know?" />
             <PromptInputToolbar>
-              <div />
+              <RecipeFromIngredientsButton
+                onGenerateRecipe={(message) => {
+                  sendMessage({ text: message });
+                }}
+                variant="ghost"
+                iconOnly
+              />
               <PromptInputSubmit status={isLoading ? "submitted" : undefined} />
             </PromptInputToolbar>
           </PromptInputBody>

@@ -136,6 +136,13 @@
 
 ---
 
+### 6 ingredients not saving in the pantry page.
+Database error: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'notes' column of 'ingredients' in the schema cache"
+}
 ## Feature Requests
 
 _Add future feature requests here_

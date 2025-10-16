@@ -17,12 +17,6 @@ export async function Navbar() {
         {user && (
           <nav className="flex items-center space-x-6 text-sm font-medium">
             <Link
-              href="/"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              Chat
-            </Link>
-            <Link
               href="/chat-history"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >

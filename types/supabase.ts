@@ -91,6 +91,7 @@ export type Database = {
           category: string
           created_at: string | null
           description: string | null
+          difficulty: string | null
           equipment: string[] | null
           id: string
           instructions: string[] | null
@@ -104,6 +105,7 @@ export type Database = {
           category: string
           created_at?: string | null
           description?: string | null
+          difficulty?: string | null
           equipment?: string[] | null
           id?: string
           instructions?: string[] | null
@@ -117,6 +119,7 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string | null
+          difficulty?: string | null
           equipment?: string[] | null
           id?: string
           instructions?: string[] | null

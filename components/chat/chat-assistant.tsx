@@ -42,8 +42,10 @@ import {
 } from "@/components/ai-elements/reasoning";
 import { Response } from "@/components/ai-elements/response";
 import { SaveRecipeButton } from "@/components/recipe/save-recipe-button";
+import { SaveWorkoutButton } from "@/components/workout/save-workout-button";
 import { RecipeFromIngredientsButton } from "@/components/recipe/recipe-from-ingredients-button";
 import { isRecipeContent, getMessageTextContent } from "@/lib/recipe-detection";
+import { isWorkoutContent } from "@/lib/workout-detection";
 
 type ChatMessage = {
   id: string;
@@ -658,9 +660,10 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
                         return null;
                       })();
 
-                  // Check if this assistant message contains a recipe
+                  // Check if this assistant message contains a recipe or workout
                   const messageText = getMessageTextContent(message);
                   const hasRecipe = message.role === 'assistant' && isRecipeContent(messageText);
+                  const hasWorkout = message.role === 'assistant' && isWorkoutContent(messageText);
 
                   return (
                     <div key={item.id} className="w-full">
@@ -669,6 +672,16 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
                         {hasRecipe && !isLoading && (
                           <div className="mt-3">
                             <SaveRecipeButton
+                              messageId={message.id}
+                              messageContent={messageText}
+                              conversationId={currentConversationId || undefined}
+                            />
+                          </div>
+                        )}
+                        {/* Show Save Workout button for assistant messages containing workouts */}
+                        {hasWorkout && !isLoading && (
+                          <div className="mt-3">
+                            <SaveWorkoutButton
                               messageId={message.id}
                               messageContent={messageText}
                               conversationId={currentConversationId || undefined}

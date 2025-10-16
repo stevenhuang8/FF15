@@ -152,6 +152,7 @@ CREATE TABLE public.exercises (
   category TEXT NOT NULL, -- 'strength', 'cardio', 'flexibility', 'hiit'
   muscle_groups TEXT[], -- ['chest', 'back', 'legs', 'arms', etc.]
   equipment TEXT[], -- ['barbell', 'dumbbell', 'bodyweight', etc.]
+  difficulty TEXT, -- 'beginner', 'intermediate', 'advanced'
 
   -- Calorie burn estimates (per minute)
   calories_per_minute_low NUMERIC, -- light intensity
@@ -324,6 +325,12 @@ CREATE INDEX idx_ingredients_expiry_date ON public.ingredients(expiry_date);
 CREATE INDEX idx_ingredient_images_user_id ON public.ingredient_images(user_id);
 
 -- Workouts
+CREATE INDEX idx_exercises_category ON public.exercises(category);
+CREATE INDEX idx_exercises_difficulty ON public.exercises(difficulty);
+CREATE INDEX idx_exercises_name_lower ON public.exercises(LOWER(name));
+CREATE INDEX idx_exercises_muscle_groups ON public.exercises USING GIN(muscle_groups);
+CREATE INDEX idx_exercises_equipment ON public.exercises USING GIN(equipment);
+CREATE INDEX idx_exercises_category_difficulty ON public.exercises(category, difficulty);
 CREATE INDEX idx_workout_plans_user_id ON public.workout_plans(user_id);
 CREATE INDEX idx_workout_logs_user_id ON public.workout_logs(user_id);
 CREATE INDEX idx_workout_logs_completed_at ON public.workout_logs(completed_at DESC);

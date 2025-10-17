@@ -115,9 +115,9 @@ export default function ConversationList({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b space-y-3">
+      <div className="p-4 border-b space-y-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Chat History</h2>
           {onNewConversation && (
@@ -140,7 +140,7 @@ export default function ConversationList({
       </div>
 
       {/* Conversation List */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 w-full">
         {loading ? (
           <div className="p-4 text-center text-muted-foreground">
             Loading conversations...
@@ -150,38 +150,36 @@ export default function ConversationList({
             {searchTerm ? 'No conversations found' : 'No conversations yet'}
           </div>
         ) : (
-          <div className="divide-y">
+          <div className="divide-y w-full">
             {filteredConversations.map((conv) => (
               <div
                 key={conv.id}
                 className={`
-                  relative cursor-pointer transition-colors hover:bg-accent
+                  w-full cursor-pointer transition-colors hover:bg-accent group
                   ${conv.id === currentConversationId ? 'bg-accent' : ''}
                 `}
                 onClick={() => onSelectConversation(conv.id)}
               >
-                <div className="flex items-center pr-12 pl-4 py-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">{getAgentIcon(conv.agent_type)}</span>
-                      <h3 className="font-medium truncate">
-                        {conv.title || 'Untitled Conversation'}
-                      </h3>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 pl-4 pr-4 py-3 w-full max-w-full">
+                  <span className="text-lg flex-shrink-0">{getAgentIcon(conv.agent_type)}</span>
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <h3 className="font-medium truncate">
+                      {conv.title || 'Untitled Conversation'}
+                    </h3>
+                    <p className="text-xs text-muted-foreground truncate">
                       {conv.updated_at && formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true })}
                     </p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="flex-shrink-0 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={(e) => handleDeleteClick(conv.id, e)}
+                    aria-label="Delete conversation"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-8 top-1/2 -translate-y-1/2 h-8 w-8 z-10"
-                  onClick={(e) => handleDeleteClick(conv.id, e)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
               </div>
             ))}
           </div>

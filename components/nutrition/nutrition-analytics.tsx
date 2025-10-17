@@ -406,15 +406,15 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                     <Line
                       type="monotone"
                       dataKey="calories"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
+                      stroke="hsl(var(--chart-1))"
+                      strokeWidth={3}
                       name="Calories"
-                      dot={{ fill: 'hsl(var(--primary))' }}
+                      dot={{ fill: 'hsl(var(--chart-1))', r: 4 }}
                     />
                     <Line
                       type="monotone"
                       dataKey="calorieTarget"
-                      stroke="#94a3b8"
+                      stroke="hsl(var(--muted-foreground))"
                       strokeWidth={2}
                       strokeDasharray="5 5"
                       name="Target"
@@ -444,7 +444,7 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="net" fill="#8b5cf6" name="Net Calories" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="net" fill="hsl(var(--chart-2))" name="Net Calories" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -476,24 +476,24 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                       type="monotone"
                       dataKey="protein"
                       stackId="1"
-                      stroke="#3b82f6"
-                      fill="#3b82f6"
+                      stroke="hsl(var(--chart-1))"
+                      fill="hsl(var(--chart-1) / 0.8)"
                       name="Protein (g)"
                     />
                     <Area
                       type="monotone"
                       dataKey="carbs"
                       stackId="1"
-                      stroke="#f97316"
-                      fill="#f97316"
+                      stroke="hsl(var(--chart-2))"
+                      fill="hsl(var(--chart-2) / 0.8)"
                       name="Carbs (g)"
                     />
                     <Area
                       type="monotone"
                       dataKey="fats"
                       stackId="1"
-                      stroke="#a855f7"
-                      fill="#a855f7"
+                      stroke="hsl(var(--chart-4))"
+                      fill="hsl(var(--chart-4) / 0.8)"
                       name="Fats (g)"
                     />
                   </AreaChart>
@@ -520,9 +520,9 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="protein" fill="#3b82f6" name="Protein (g)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="carbs" fill="#f97316" name="Carbs (g)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="fats" fill="#a855f7" name="Fats (g)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="protein" fill="hsl(var(--chart-1))" name="Protein (g)" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="carbs" fill="hsl(var(--chart-2))" name="Carbs (g)" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="fats" fill="hsl(var(--chart-4))" name="Fats (g)" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

@@ -79,37 +79,58 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Deep dark blue background for sleek aesthetic */
+  --background: oklch(0.12 0.02 265);
+  --foreground: oklch(0.98 0.01 265);
+
+  /* Card with subtle blue tint */
+  --card: oklch(0.18 0.03 265);
+  --card-foreground: oklch(0.98 0.01 265);
+
+  /* Popover slightly lighter than cards */
+  --popover: oklch(0.20 0.03 265);
+  --popover-foreground: oklch(0.98 0.01 265);
+
+  /* Vibrant blue-purple gradient for primary */
+  --primary: oklch(0.65 0.25 270);
+  --primary-foreground: oklch(0.98 0.01 270);
+
+  /* Secondary with deep purple tones */
+  --secondary: oklch(0.25 0.04 280);
+  --secondary-foreground: oklch(0.98 0.01 280);
+
+  /* Muted states with subtle color */
+  --muted: oklch(0.25 0.03 265);
+  --muted-foreground: oklch(0.65 0.02 265);
+
+  /* Accent with bright purple */
+  --accent: oklch(0.55 0.22 290);
+  --accent-foreground: oklch(0.98 0.01 290);
+
+  /* Destructive red with good contrast */
+  --destructive: oklch(0.60 0.22 25);
+
+  /* Borders and inputs with blue tint */
+  --border: oklch(0.30 0.04 265);
+  --input: oklch(0.25 0.04 265);
+  --ring: oklch(0.65 0.25 270);
+
+  /* Chart colors - vibrant blue/purple spectrum */
+  --chart-1: oklch(0.65 0.25 270); /* Bright blue */
+  --chart-2: oklch(0.70 0.22 290); /* Purple */
+  --chart-3: oklch(0.60 0.20 250); /* Deep blue */
+  --chart-4: oklch(0.75 0.18 310); /* Magenta */
+  --chart-5: oklch(0.55 0.23 230); /* Indigo */
+
+  /* Sidebar with dark theme */
+  --sidebar: oklch(0.15 0.02 265);
+  --sidebar-foreground: oklch(0.98 0.01 265);
+  --sidebar-primary: oklch(0.65 0.25 270);
+  --sidebar-primary-foreground: oklch(0.98 0.01 270);
+  --sidebar-accent: oklch(0.25 0.04 280);
+  --sidebar-accent-foreground: oklch(0.98 0.01 280);
+  --sidebar-border: oklch(0.30 0.04 265);
+  --sidebar-ring: oklch(0.65 0.25 270);
 }
 
 @layer base {
@@ -117,6 +138,73 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+  /* Gradient utilities for blue/purple theme */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, oklch(0.65 0.25 270) 0%, oklch(0.70 0.22 290) 100%);
+  }
+
+  .bg-gradient-accent {
+    background: linear-gradient(135deg, oklch(0.55 0.22 290) 0%, oklch(0.65 0.25 270) 100%);
+  }
+
+  .bg-gradient-dark {
+    background: linear-gradient(180deg, oklch(0.12 0.02 265) 0%, oklch(0.08 0.02 270) 100%);
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    background: oklch(0.20 0.03 265 / 0.5);
+    backdrop-filter: blur(12px);
+    border: 1px solid oklch(0.30 0.04 265 / 0.5);
+  }
+
+  .glass-strong {
+    background: oklch(0.20 0.03 265 / 0.8);
+    backdrop-filter: blur(16px);
+    border: 1px solid oklch(0.30 0.04 265 / 0.7);
+  }
+
+  /* Animated gradient backgrounds */
+  .animated-gradient {
+    background: linear-gradient(
+      -45deg,
+      oklch(0.65 0.25 270),
+      oklch(0.70 0.22 290),
+      oklch(0.55 0.22 290),
+      oklch(0.60 0.20 250)
+    );
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+  }
+
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Glow effects for interactive elements */
+  .glow {
+    box-shadow: 0 0 20px oklch(0.65 0.25 270 / 0.5);
+  }
+
+  .glow-hover:hover {
+    box-shadow: 0 0 30px oklch(0.65 0.25 270 / 0.7);
   }
 }

@@ -136,16 +136,133 @@
 
 ---
 
-### 6 ingredients not saving in the pantry page.
+### 6. Ingredients Not Saving in Pantry Page
+
+**Issue**: Adding ingredients fails with database error about missing 'notes' column.
+
+**Error**:
+```
 Database error: {
   code: 'PGRST204',
   details: null,
   hint: null,
   message: "Could not find the 'notes' column of 'ingredients' in the schema cache"
 }
+```
+
+**Root Cause**: The `notes` column exists in the schema file (`supabase-schema.sql`) but was never created in the actual database.
+
+**Solution**: Run the migration in `supabase-ingredients-notes-migration.sql` to add the missing column.
+
+**Status**: Migration created, waiting for manual execution in Supabase dashboard.
+
+---
+
+### 7. Chat Assistant Cannot Access Pantry Ingredients
+
+**Issue**: The chat assistant cannot see or retrieve the user's pantry ingredients, making it unable to suggest recipes based on available ingredients.
+
+**Current State**:
+- ✅ Stub tool exists: `generateRecipeFromIngredients` (components/agent/tools/generate-recipe-from-ingredients.ts)
+- ❌ Not connected to chat API
+- ❌ Not implemented - returns placeholder message
+- ❌ No authentication/user context passing
+
+**What Chat Assistant Currently Has**:
+- Only `web_search` tool (OpenAI web search)
+- No database access to ingredients table
+
+**Required Implementation**:
+1. Add `generateRecipeFromIngredients` tool to chat API (app/api/chat/route.ts)
+2. Implement real database query to fetch user's ingredients from Supabase
+3. Handle authentication - pass user session from chat to tool execution
+4. Return structured ingredient data (name, quantity, unit, expiry date, category)
+5. Optional: Prioritize expiring ingredients in the response
+
+**Related Files**:
+- `/app/api/chat/route.ts` - Chat API endpoint (needs tool added to configuration)
+- `/components/agent/tools/generate-recipe-from-ingredients.ts` - Tool stub (needs implementation)
+- `/app/api/ingredients/route.ts` - Ingredients API (can reference for DB queries)
+- `/lib/supabase/server.ts` - Supabase server client
+
+**User Impact**:
+- Users cannot ask "What can I make with my ingredients?" and get accurate responses
+- AI must rely on manual ingredient lists instead of accessing pantry data
+- Missing core feature from Task 6: "Build AI-Powered Recipe Generation from Pantry"
+
+**Status**: Deferred - tool exists but not yet implemented or connected.
+
+---
+
 ## Feature Requests
 
-_Add future feature requests here_
+### 1. Multi-Agent Architecture with Specialized Sub-Agents
+
+**Concept**: Implement specialized AI sub-agents for different cooking and recipe-related tasks to improve response quality and task specialization.
+
+**Proposed Sub-Agents**:
+
+1. **Cooking Assistant Agent**
+   - Specializes in cooking techniques, timing, and methods
+   - Provides step-by-step guidance during active cooking
+   - Troubleshoots cooking issues in real-time
+   - Explains "why" behind techniques (e.g., why sear meat first)
+
+2. **Recipe Research Agent**
+   - Deep research on specific dishes, cuisines, and techniques
+   - Historical context and cultural background of recipes
+   - Multiple recipe variations and regional differences
+   - Professional chef techniques and tips
+
+3. **Ingredient Substitution Agent**
+   - Specialized in finding ingredient alternatives
+   - Considers dietary restrictions, allergies, and preferences
+   - Explains substitution ratios and how they affect the dish
+   - Suggests multiple alternatives with pros/cons
+
+4. **Nutrition Analysis Agent**
+   - Calculates detailed nutritional information
+   - Suggests healthier alternatives while maintaining flavor
+   - Meal planning for specific dietary goals
+   - Macro/micronutrient breakdowns
+
+5. **Meal Planning Agent**
+   - Weekly meal prep strategies
+   - Grocery list optimization
+   - Budget-conscious meal planning
+   - Batch cooking recommendations
+
+6. **Pantry Management Agent**
+   - Inventory tracking and optimization
+   - Expiry date monitoring and alerts
+   - Recipe suggestions based on available ingredients
+   - Waste reduction strategies
+
+**Implementation Approach**:
+- Create separate API routes for each agent type (e.g., `/api/agents/cooking`, `/api/agents/research`)
+- Each agent has its own system prompt optimized for its specialty
+- Each agent has access to relevant tools (e.g., nutrition agent gets calorie lookup tools)
+- Main chat assistant can delegate to specialized agents when needed
+- Use AI SDK's multi-agent patterns for coordination
+
+**Benefits**:
+- More accurate and detailed responses for specialized queries
+- Better prompt engineering per domain
+- Reduced context window usage (focused tools per agent)
+- Ability to run multiple agents in parallel for complex tasks
+- Clearer separation of concerns
+
+**Technical References**:
+- AI SDK Multi-Agent Patterns: https://sdk.vercel.ai/docs/ai-sdk-core/tools-and-tool-calling
+- Manual Agent Loop Cookbook: https://ai-sdk.dev/cookbook/node/manual-agent-loop
+- Existing multi-agent architecture in codebase: `/app/api/rag-agent/route.ts`
+
+**Related Files**:
+- `/components/agent/prompt.ts` - Base system prompt (template for sub-agents)
+- `/app/api/chat/route.ts` - Main chat endpoint (coordination layer)
+- `/components/agent/tools/` - Tools directory (can be specialized per agent)
+
+**Status**: Proposed - needs architectural design and implementation plan.
 
 ---
 

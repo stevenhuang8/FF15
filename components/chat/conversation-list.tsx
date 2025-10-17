@@ -9,7 +9,6 @@ import {
 } from "@/lib/supabase/conversations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -140,51 +139,54 @@ export default function ConversationList({
       </div>
 
       {/* Conversation List */}
-      <ScrollArea className="flex-1 w-full">
-        {loading ? (
-          <div className="p-4 text-center text-muted-foreground">
-            Loading conversations...
-          </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground">
-            {searchTerm ? 'No conversations found' : 'No conversations yet'}
-          </div>
-        ) : (
-          <div className="divide-y w-full">
-            {filteredConversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={`
-                  w-full cursor-pointer transition-colors hover:bg-accent group
-                  ${conv.id === currentConversationId ? 'bg-accent' : ''}
-                `}
-                onClick={() => onSelectConversation(conv.id)}
-              >
-                <div className="flex items-center gap-2 pl-4 pr-4 py-3 w-full max-w-full">
-                  <span className="text-lg flex-shrink-0">{getAgentIcon(conv.agent_type)}</span>
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <h3 className="font-medium truncate">
-                      {conv.title || 'Untitled Conversation'}
-                    </h3>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {conv.updated_at && formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true })}
-                    </p>
+      <div className="flex-1 overflow-y-auto w-full">
+        <div className="w-full max-w-full">
+          {loading ? (
+            <div className="p-4 text-center text-muted-foreground">
+              Loading conversations...
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground">
+              {searchTerm ? 'No conversations found' : 'No conversations yet'}
+            </div>
+          ) : (
+            <div className="divide-y w-full max-w-full">
+              {filteredConversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  className={`
+                    cursor-pointer transition-colors hover:bg-accent group
+                    ${conv.id === currentConversationId ? 'bg-accent' : ''}
+                  `}
+                  onClick={() => onSelectConversation(conv.id)}
+                  style={{ maxWidth: '384px' }}
+                >
+                  <div className="flex items-center gap-2 px-3 py-3" style={{ maxWidth: '384px' }}>
+                    <span className="text-lg flex-shrink-0 w-6">{getAgentIcon(conv.agent_type)}</span>
+                    <div className="flex-1 min-w-0 overflow-hidden mr-2">
+                      <h3 className="font-medium truncate text-sm">
+                        {conv.title || 'Untitled Conversation'}
+                      </h3>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {conv.updated_at && formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="flex-shrink-0 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={(e) => handleDeleteClick(conv.id, e)}
+                      aria-label="Delete conversation"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="flex-shrink-0 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={(e) => handleDeleteClick(conv.id, e)}
-                    aria-label="Delete conversation"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </ScrollArea>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

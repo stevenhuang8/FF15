@@ -24,7 +24,7 @@ export default function ChatHistoryPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar with conversation list */}
-      <aside className="w-96 flex-shrink-0 border-r bg-muted/30 overflow-y-auto overflow-x-hidden relative z-40">
+      <aside className="w-96 max-w-96 min-w-0 flex-shrink-0 border-r bg-muted/30 overflow-x-hidden relative z-40 h-full">
         <ConversationList
           onSelectConversation={handleSelectConversation}
           currentConversationId={selectedConversationId}

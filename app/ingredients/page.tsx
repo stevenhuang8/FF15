@@ -73,21 +73,27 @@ export default function IngredientsPage() {
     setError(null)
 
     try {
+      // Prepare data for API
+      const payload = {
+        name: data.name,
+        quantity: data.quantity,
+        unit: data.unit,
+        category: data.category || null,
+        expiryDate: data.expiryDate ? data.expiryDate.toISOString() : null,
+        notes: data.notes?.trim() || null,
+      }
+
+      console.log('📤 Sending to API:', payload)
+
       const response = await fetch('/api/ingredients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: data.name,
-          quantity: data.quantity,
-          unit: data.unit,
-          category: data.category || null,
-          expiryDate: data.expiryDate || null,
-          notes: data.notes || null,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('❌ API Error:', errorData)
         throw new Error(errorData.error || 'Failed to add ingredient')
       }
 

@@ -11,9 +11,9 @@ const createIngredientSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   quantity: z.number().positive('Quantity must be positive'),
   unit: z.string().min(1, 'Unit is required'),
-  category: z.string().optional(),
+  category: z.string().optional().nullable(),
   expiryDate: z.string().datetime().optional().nullable(),
-  notes: z.string().max(500).optional(),
+  notes: z.string().max(500).optional().nullable(),
 })
 
 /**
@@ -105,9 +105,12 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json()
+    console.log('📥 Received ingredient data:', JSON.stringify(body, null, 2))
+
     const validationResult = createIngredientSchema.safeParse(body)
 
     if (!validationResult.success) {
+      console.error('❌ Validation failed:', validationResult.error.issues)
       return NextResponse.json(
         { error: 'Validation failed', details: validationResult.error.issues },
         { status: 400 }
@@ -116,25 +119,31 @@ export async function POST(request: NextRequest) {
 
     const { name, quantity, unit, category, expiryDate, notes } = validationResult.data
 
+    // Prepare data for insertion
+    const insertData = {
+      user_id: user.id,
+      name: name.trim().toLowerCase(),
+      quantity,
+      unit,
+      category: category || null,
+      expiry_date: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : null,
+      notes: notes || null,
+    }
+    console.log('💾 Inserting into database:', JSON.stringify(insertData, null, 2))
+
     // Insert ingredient
     const { data: ingredient, error } = await supabase
       .from('ingredients')
-      .insert({
-        user_id: user.id,
-        name: name.trim().toLowerCase(),
-        quantity,
-        unit,
-        category: category || null,
-        expiry_date: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : null,
-        notes: notes || null,
-      })
+      .insert(insertData)
       .select()
       .single()
 
     if (error) {
-      console.error('Database error:', error)
+      console.error('❌ Database error:', error)
       return NextResponse.json({ error: 'Failed to create ingredient' }, { status: 500 })
     }
+
+    console.log('✅ Ingredient created successfully:', ingredient.id)
 
     return NextResponse.json({ ingredient }, { status: 201 })
   } catch (error) {

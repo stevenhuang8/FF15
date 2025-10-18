@@ -194,6 +194,77 @@ Database error: {
 
 ---
 
+### 8. Ingredient Quantity Input Issues
+
+**Issue**: The ingredient quantity input field has usability problems that make it difficult to modify values.
+
+**Impact**: Users struggle to input or modify ingredient quantities, leading to frustration and data entry errors.
+
+**Specific Problems**:
+- Users cannot delete/clear the quantity value
+- Requires double-click to edit the number instead of single-click
+- Input field may not be properly focused or editable on first interaction
+- Poor UX for quick ingredient entry
+
+**Related Files**:
+- `/app/pantry/page.tsx` - Pantry page with ingredient management
+- Add ingredient form/component (needs identification)
+- May involve input component configuration or event handling
+
+**Potential Solutions**:
+- Ensure input field is properly focused and editable with single click
+- Allow clearing the value with backspace/delete keys
+- Consider using number input type with proper step/min/max attributes
+- Add visual feedback when field is focused and editable
+
+**Status**: Reported - needs investigation and fix.
+
+---
+
+### 9. Workout Exercise Input Not Working
+
+**Issue**: When trying to log a workout, the "add exercises" button does not allow the user to type or suggest any workouts.
+
+**Impact**: Users cannot log workouts because they cannot input exercise data.
+
+**Specific Problems**:
+- Input field may not be receiving focus
+- Text input is not being captured or processed
+- Autocomplete/suggestion feature may not be triggering
+- Potential event handler issues preventing keyboard input
+
+**Related Files**:
+- Workout logging page/component (needs identification)
+- Exercise input component (needs identification)
+- May involve form state management issues
+
+**Status**: Reported - needs investigation and fix.
+
+---
+
+### 10. Meal Food Items Input Not Working
+
+**Issue**: When trying to log a meal, the "Add food items" button does not allow the user to type or suggest any food items. This is the same problem as the workout exercise input issue (#9).
+
+**Impact**: Users cannot log meals because they cannot input food data.
+
+**Specific Problems**:
+- Input field may not be receiving focus
+- Text input is not being captured or processed
+- Autocomplete/suggestion feature may not be triggering
+- Potential event handler issues preventing keyboard input
+- Same underlying cause as workout exercise input issue
+
+**Related Files**:
+- Meal logging page/component (needs identification)
+- Food item input component (needs identification)
+- May involve shared form component with workout feature
+- May involve form state management issues
+
+**Status**: Reported - needs investigation and fix. Likely shares root cause with issue #9.
+
+---
+
 ## Feature Requests
 
 ### 1. Multi-Agent Architecture with Specialized Sub-Agents

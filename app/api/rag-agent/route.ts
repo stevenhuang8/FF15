@@ -1,5 +1,5 @@
 import { RAG_SYSTEM_INSTRUCTIONS } from "@/components/agent/rag-prompt";
-import { retrieveKnowledgeBaseSimple } from "@/components/agent/tools";
+import { retrieveKnowledgeBaseSimple, suggestSubstitution } from "@/components/agent/tools";
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { NextRequest } from "next/server";
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       stopWhen: stepCountIs(10), // this is the part that makes this an agent!!!!
       tools: {
         retrieveKnowledgeBase: retrieveKnowledgeBaseSimple,
+        suggestSubstitution,
       },
     });
 

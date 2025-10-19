@@ -1,4 +1,5 @@
 import { SYSTEM_INSTRUCTIONS } from "@/components/agent/prompt";
+import { suggestSubstitution } from "@/components/agent/tools";
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages } from "ai";
 import { NextRequest } from "next/server";
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
         },
       },
       tools: {
+        suggestSubstitution,
         web_search: openai.tools.webSearch({
           searchContextSize: "low",
         }),

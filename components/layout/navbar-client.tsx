@@ -19,6 +19,7 @@ export function NavbarClient({ user, userMenuComponent }: NavbarClientProps) {
 
   const navItems = [
     { href: '/chat-history', label: 'History' },
+    { href: '/dashboard', label: 'Dashboard' },
     { href: '/ingredients', label: 'Pantry' },
     { href: '/recipes', label: 'Recipes' },
     { href: '/nutrition', label: 'Nutrition' },

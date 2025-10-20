@@ -26,7 +26,9 @@ import { WorkoutList } from '@/components/workout/workout-list'
 import { WorkoutLogForm } from '@/components/workout/workout-log-form'
 import { WorkoutLogHistory } from '@/components/workout/workout-log-history'
 import { ProgressPhotos } from '@/components/workout/progress-photos'
-import { getWorkouts } from '@/lib/supabase/workouts'
+import { WorkoutDetailDialog } from '@/components/workout/workout-detail-dialog'
+import { DeleteWorkoutDialog } from '@/components/workout/delete-workout-dialog'
+import { getWorkouts, deleteWorkout } from '@/lib/supabase/workouts'
 import { createClient } from '@/lib/supabase/client'
 import type { Tables } from '@/types/supabase'
 
@@ -37,6 +39,10 @@ export function WorkoutsPageClient() {
   const [activeTab, setActiveTab] = useState('plans')
   const [workouts, setWorkouts] = useState<SavedWorkout[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedWorkout, setSelectedWorkout] = useState<SavedWorkout | null>(null)
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     loadWorkouts()
@@ -60,6 +66,53 @@ export function WorkoutsPageClient() {
       console.error('Error loading workouts:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleWorkoutClick = (workout: SavedWorkout) => {
+    setSelectedWorkout(workout)
+    setDetailDialogOpen(true)
+  }
+
+  const handleDeleteClick = (workout: SavedWorkout) => {
+    setSelectedWorkout(workout)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleEditClick = (workout: SavedWorkout) => {
+    // TODO: Implement edit functionality
+    console.log('Edit workout:', workout)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedWorkout) return
+
+    setIsDeleting(true)
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      const { error } = await deleteWorkout(selectedWorkout.id, user.id)
+
+      if (error) {
+        console.error('Error deleting workout:', error)
+        alert('Failed to delete workout. Please try again.')
+      } else {
+        // Remove the workout from the list
+        setWorkouts((prev) => prev.filter((w) => w.id !== selectedWorkout.id))
+        setDeleteDialogOpen(false)
+        setSelectedWorkout(null)
+        console.log('✅ Workout deleted successfully')
+      }
+    } catch (error) {
+      console.error('Exception deleting workout:', error)
+      alert('An error occurred while deleting the workout.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -107,7 +160,13 @@ export function WorkoutsPageClient() {
                 </p>
               </div>
             </div>
-            <WorkoutList workouts={workouts} isLoading={isLoading} />
+            <WorkoutList
+              workouts={workouts}
+              isLoading={isLoading}
+              onWorkoutClick={handleWorkoutClick}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+            />
           </div>
         </TabsContent>
 
@@ -142,6 +201,33 @@ export function WorkoutsPageClient() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Workout Detail Dialog */}
+      <WorkoutDetailDialog
+        workout={selectedWorkout}
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        onEdit={() => {
+          setDetailDialogOpen(false)
+          if (selectedWorkout) {
+            handleEditClick(selectedWorkout)
+          }
+        }}
+        onDelete={() => {
+          setDetailDialogOpen(false)
+          if (selectedWorkout) {
+            handleDeleteClick(selectedWorkout)
+          }
+        }}
+      />
+
+      {/* Delete Workout Confirmation Dialog */}
+      <DeleteWorkoutDialog
+        workout={selectedWorkout}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   )
 }

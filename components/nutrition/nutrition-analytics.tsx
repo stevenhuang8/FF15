@@ -406,10 +406,10 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                     <Line
                       type="monotone"
                       dataKey="calories"
-                      stroke="hsl(var(--chart-1))"
+                      stroke="#A855F7"
                       strokeWidth={3}
                       name="Calories"
-                      dot={{ fill: 'hsl(var(--chart-1))', r: 4 }}
+                      dot={{ fill: '#A855F7', r: 4 }}
                     />
                     <Line
                       type="monotone"
@@ -441,10 +441,13 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
+                        color: 'hsl(var(--foreground))',
                       }}
+                      labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 500 }}
+                      itemStyle={{ color: 'hsl(var(--foreground))' }}
                     />
                     <Legend />
-                    <Bar dataKey="net" fill="hsl(var(--chart-2))" name="Net Calories" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="net" fill="#A855F7" name="Net Calories" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -484,8 +487,8 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                       type="monotone"
                       dataKey="carbs"
                       stackId="1"
-                      stroke="hsl(var(--chart-2))"
-                      fill="hsl(var(--chart-2) / 0.8)"
+                      stroke="#A855F7"
+                      fill="rgba(168, 85, 247, 0.8)"
                       name="Carbs (g)"
                     />
                     <Area
@@ -517,11 +520,14 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
+                        color: 'hsl(var(--foreground))',
                       }}
+                      labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 500 }}
+                      itemStyle={{ color: 'hsl(var(--foreground))' }}
                     />
                     <Legend />
                     <Bar dataKey="protein" fill="hsl(var(--chart-1))" name="Protein (g)" radius={[8, 8, 0, 0]} />
-                    <Bar dataKey="carbs" fill="hsl(var(--chart-2))" name="Carbs (g)" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="carbs" fill="#A855F7" name="Carbs (g)" radius={[8, 8, 0, 0]} />
                     <Bar dataKey="fats" fill="hsl(var(--chart-4))" name="Fats (g)" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

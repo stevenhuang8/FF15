@@ -90,6 +90,26 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
+const BarChartTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) return null
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
+      <p className="text-sm font-medium mb-2 text-foreground">{label}</p>
+      {payload.map((entry: any, index: number) => (
+        <div key={index} className="flex items-center gap-2 text-sm">
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span className="text-muted-foreground">{entry.name}:</span>
+          <span className="font-medium text-foreground">{entry.value?.toFixed(1)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ============================================================================
 // Single Chart Component
 // ============================================================================
@@ -122,7 +142,7 @@ export function ProgressChart({
       margin: { top: 5, right: 30, left: 20, bottom: 5 },
     }
 
-    const chartColor = '#8884d8'
+    const chartColor = '#A855F7' // Purple from schema (oklch(0.70 0.22 290))
 
     switch (type) {
       case 'area':
@@ -193,7 +213,7 @@ export function ProgressChart({
               className="text-xs"
               tick={{ fill: 'hsl(var(--muted-foreground))' }}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<BarChartTooltip />} />
             {showLegend && <Legend />}
             {seriesConfig ? (
               seriesConfig.map((series) => (

@@ -39,9 +39,7 @@ export async function createMealLog(
       total_protein: totals.totalProtein,
       total_carbs: totals.totalCarbs,
       total_fats: totals.totalFats,
-      image_url: input.imageUrl || null,
       notes: input.notes || null,
-      nutrition_source: input.recipeId ? 'recipe' : 'api',
     };
 
     const { data, error } = await supabase
@@ -60,7 +58,22 @@ export async function createMealLog(
     // Update daily calorie tracking
     await updateDailyCalorieTracking(input.userId, new Date());
 
-    return { data: data as unknown as MealLog, error: null };
+    // Map snake_case database fields to camelCase TypeScript types
+    const mappedData: MealLog = {
+      id: data.id,
+      userId: data.user_id,
+      mealType: data.meal_type,
+      foodItems: data.food_items,
+      recipeId: data.recipe_id,
+      totalCalories: data.total_calories,
+      totalProtein: data.total_protein,
+      totalCarbs: data.total_carbs,
+      totalFats: data.total_fats,
+      notes: data.notes,
+      loggedAt: data.logged_at,
+    };
+
+    return { data: mappedData, error: null };
   } catch (error) {
     console.error('Exception creating meal log:', error);
     return {
@@ -102,7 +115,22 @@ export async function getMealLogs(
       return { data: null, error };
     }
 
-    return { data: data as unknown as MealLog[], error: null };
+    // Map snake_case database fields to camelCase TypeScript types
+    const mappedData: MealLog[] = (data || []).map((row: any) => ({
+      id: row.id,
+      userId: row.user_id,
+      mealType: row.meal_type,
+      foodItems: row.food_items,
+      recipeId: row.recipe_id,
+      totalCalories: row.total_calories,
+      totalProtein: row.total_protein,
+      totalCarbs: row.total_carbs,
+      totalFats: row.total_fats,
+      notes: row.notes,
+      loggedAt: row.logged_at,
+    }));
+
+    return { data: mappedData, error: null };
   } catch (error) {
     console.error('Exception fetching meal logs:', error);
     return {
@@ -170,7 +198,22 @@ export async function updateMealLog(
     // Update daily calorie tracking
     await updateDailyCalorieTracking(userId, new Date());
 
-    return { data: data as unknown as MealLog, error: null };
+    // Map snake_case database fields to camelCase TypeScript types
+    const mappedData: MealLog = {
+      id: data.id,
+      userId: data.user_id,
+      mealType: data.meal_type,
+      foodItems: data.food_items,
+      recipeId: data.recipe_id,
+      totalCalories: data.total_calories,
+      totalProtein: data.total_protein,
+      totalCarbs: data.total_carbs,
+      totalFats: data.total_fats,
+      notes: data.notes,
+      loggedAt: data.logged_at,
+    };
+
+    return { data: mappedData, error: null };
   } catch (error) {
     console.error('Exception updating meal log:', error);
     return {

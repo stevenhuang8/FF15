@@ -100,10 +100,11 @@ export interface MealLog {
   totalProtein?: number;
   totalCarbs?: number;
   totalFats?: number;
-  imageUrl?: string;
   notes?: string;
   loggedAt: string;
-  nutritionSource: 'api' | 'manual' | 'recipe';
+  // Optional fields not in database schema
+  imageUrl?: string;
+  nutritionSource?: 'api' | 'manual' | 'recipe';
 }
 
 export interface CreateMealLogInput {

@@ -25,8 +25,6 @@ type UserProfile = Database['public']['Tables']['user_profiles']['Row']
 
 const profileSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters').optional(),
-  dietary_restrictions: z.string().optional(),
-  allergies: z.string().optional(),
   fitness_goals: z.string().optional(),
   daily_calorie_target: z.union([z.number().int().min(0), z.string()]).optional().nullable(),
   daily_protein_target: z.union([z.number().int().min(0), z.string()]).optional().nullable(),
@@ -38,8 +36,6 @@ type ProfileFormValues = z.infer<typeof profileSchema>
 
 type ProfileData = {
   full_name?: string
-  dietary_restrictions?: string
-  allergies?: string
   fitness_goals?: string
   daily_calorie_target?: number | null
   daily_protein_target?: number | null
@@ -60,8 +56,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       full_name: profile?.full_name || '',
-      dietary_restrictions: profile?.dietary_restrictions?.join(', ') || '',
-      allergies: profile?.allergies?.join(', ') || '',
       fitness_goals: profile?.fitness_goals?.join(', ') || '',
       daily_calorie_target: profile?.daily_calorie_target || null,
       daily_protein_target: profile?.daily_protein_target || null,
@@ -83,12 +77,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       }
 
       // Convert comma-separated strings to arrays
-      const dietary_restrictions = data.dietary_restrictions
-        ? data.dietary_restrictions.split(',').map(s => s.trim()).filter(Boolean)
-        : []
-      const allergies = data.allergies
-        ? data.allergies.split(',').map(s => s.trim()).filter(Boolean)
-        : []
       const fitness_goals = data.fitness_goals
         ? data.fitness_goals.split(',').map(s => s.trim()).filter(Boolean)
         : []
@@ -104,8 +92,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         id: user.id,
         email: user.email!,
         full_name: data.full_name || null,
-        dietary_restrictions,
-        allergies,
         fitness_goals,
         daily_calorie_target: parseNumber(data.daily_calorie_target),
         daily_protein_target: parseNumber(data.daily_protein_target),
@@ -155,46 +141,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
                   <FormControl>
                     <Input placeholder="John Doe" {...field} />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="dietary_restrictions"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Dietary Restrictions</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="vegetarian, vegan, gluten-free (comma-separated)"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Enter dietary restrictions separated by commas
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="allergies"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Allergies</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="peanuts, shellfish, dairy (comma-separated)"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Enter allergies separated by commas
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

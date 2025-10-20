@@ -37,11 +37,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 
 import { createClient } from '@/lib/supabase/client'
 import { logWorkout } from '@/lib/supabase/workouts'
@@ -466,86 +461,157 @@ export function WorkoutLogForm({
 
           {/* Exercise Search and Add */}
           <div className="space-y-4">
-            <Label>Add Exercises</Label>
+            <div>
+              <Label>Add Exercises</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Search our exercise database or enter a custom exercise name
+              </p>
+            </div>
 
             {/* Exercise Search */}
             <div className="space-y-3">
-              <Popover
-                open={exerciseSearch.isOpen}
-                onOpenChange={(open) =>
-                  setExerciseSearch((prev) => ({ ...prev, isOpen: open }))
-                }
-              >
-                <PopoverTrigger asChild>
-                  <div className="relative">
-                    <Input
-                      placeholder="Search for exercise..."
-                      value={exerciseSearch.query}
-                      onChange={(e) => {
-                        setExerciseSearch((prev) => ({
+              <div className="relative">
+                <div className="relative">
+                  <Input
+                    placeholder="Search for exercise or enter custom name..."
+                    value={exerciseSearch.query}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setExerciseSearch((prev) => ({
+                        ...prev,
+                        query: value,
+                        isOpen: value.length >= 2,
+                      }))
+                      // If user is typing a custom exercise, create a temporary exercise object
+                      if (value.length >= 2) {
+                        setCurrentExercise((prev) => ({
                           ...prev,
-                          query: e.target.value,
-                          isOpen: true,
+                          exercise: {
+                            id: 'custom-temp-' + Date.now(),
+                            name: value,
+                            category: 'Custom',
+                            muscle_groups: [],
+                            equipment: [],
+                            difficulty: 'medium',
+                            calories_per_minute_low: 3,
+                            calories_per_minute_medium: 5,
+                            calories_per_minute_high: 7,
+                          },
                         }))
-                      }}
-                      onFocus={() =>
+                      } else {
+                        setCurrentExercise((prev) => ({
+                          ...prev,
+                          exercise: null,
+                        }))
+                      }
+                    }}
+                    onFocus={() => {
+                      if (exerciseSearch.query.length >= 2) {
                         setExerciseSearch((prev) => ({ ...prev, isOpen: true }))
                       }
-                    />
-                    {exerciseSearch.isSearching && (
-                      <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-[500px] p-0" align="start">
-                  <Command>
-                    <CommandList>
-                      {exerciseSearch.results.length === 0 &&
-                        !exerciseSearch.isSearching && (
+                    }}
+                    onBlur={() => {
+                      // Delay closing to allow clicking on items
+                      setTimeout(() => {
+                        setExerciseSearch((prev) => ({ ...prev, isOpen: false }))
+                      }, 200)
+                    }}
+                  />
+                  {exerciseSearch.isSearching && (
+                    <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+
+                {/* Dropdown Results */}
+                {exerciseSearch.isOpen && exerciseSearch.query.length >= 2 && (
+                  <div className="absolute z-50 w-full mt-1 rounded-md border bg-popover shadow-md max-h-[300px] overflow-y-auto">
+                    <Command>
+                      <CommandList>
+                        {exerciseSearch.isSearching && (
+                          <div className="py-6 text-center text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                            Searching exercises...
+                          </div>
+                        )}
+                        {!exerciseSearch.isSearching && exerciseSearch.results.length === 0 && (
                           <CommandEmpty>
-                            {exerciseSearch.query.length < 2
-                              ? 'Type at least 2 characters to search'
-                              : 'No exercises found'}
+                            <div className="py-4 text-center">
+                              <p className="text-sm text-muted-foreground mb-2">
+                                No exercises found matching "{exerciseSearch.query}"
+                              </p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  // Create a custom exercise entry
+                                  const customExercise: Exercise = {
+                                    id: 'custom-' + Date.now(),
+                                    name: exerciseSearch.query,
+                                    category: 'Custom',
+                                    muscle_groups: [],
+                                    equipment: [],
+                                    difficulty: 'medium',
+                                    calories_per_minute_low: 3,
+                                    calories_per_minute_medium: 5,
+                                    calories_per_minute_high: 7,
+                                  }
+                                  handleExerciseSelect(customExercise)
+                                }}
+                                className="mx-auto"
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Use "{exerciseSearch.query}" as custom exercise
+                              </Button>
+                            </div>
                           </CommandEmpty>
                         )}
-                      {exerciseSearch.results.length > 0 && (
-                        <CommandGroup>
-                          {exerciseSearch.results.map((result) => (
-                            <CommandItem
-                              key={result.id}
-                              onSelect={() => handleExerciseSelect(result)}
-                              className="cursor-pointer"
-                            >
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{result.name}</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {result.category}
-                                  </Badge>
-                                  {result.difficulty && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {result.difficulty}
+                        {!exerciseSearch.isSearching && exerciseSearch.results.length > 0 && (
+                          <CommandGroup>
+                            {exerciseSearch.results.map((result) => (
+                              <CommandItem
+                                key={result.id}
+                                onSelect={() => handleExerciseSelect(result)}
+                                className="cursor-pointer"
+                              >
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{result.name}</span>
+                                    <Badge variant="outline" className="text-xs">
+                                      {result.category}
                                     </Badge>
-                                  )}
+                                    {result.difficulty && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {result.difficulty}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {result.muscle_groups.join(', ')}
+                                  </span>
                                 </div>
-                                <span className="text-xs text-muted-foreground">
-                                  {result.muscle_groups.join(', ')}
-                                </span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      )}
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </div>
+                )}
+              </div>
 
               {/* Exercise Details Input */}
               {currentExercise.exercise && (
                 <div className="rounded-lg border p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">{currentExercise.exercise.name}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold">{currentExercise.exercise.name}</h4>
+                      {currentExercise.exercise.category === 'Custom' && (
+                        <Badge variant="secondary" className="text-xs">
+                          Custom Exercise
+                        </Badge>
+                      )}
+                    </div>
                     <Badge>{currentExercise.exercise.category}</Badge>
                   </div>
 

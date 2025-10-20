@@ -77,7 +77,7 @@ export function IngredientInput({
     resolver: zodResolver(ingredientSchema),
     defaultValues: {
       name: defaultValues?.name || '',
-      quantity: defaultValues?.quantity || 1,
+      quantity: defaultValues?.quantity || undefined,
       unit: defaultValues?.unit || 'piece',
       category: defaultValues?.category || undefined,
       expiryDate: defaultValues?.expiryDate || null,
@@ -181,14 +181,20 @@ export function IngredientInput({
                   <Input
                     type="number"
                     step="0.01"
-                    min="0.01"
-                    placeholder="1"
+                    placeholder="Enter quantity"
                     {...field}
                     value={isNaN(field.value) || field.value === undefined ? '' : field.value}
                     onChange={(e) => {
-                      const num = parseFloat(e.target.value);
-                      field.onChange(isNaN(num) ? undefined : num);
+                      const value = e.target.value;
+                      // Allow empty string for easier editing
+                      if (value === '') {
+                        field.onChange(undefined);
+                      } else {
+                        const num = parseFloat(value);
+                        field.onChange(isNaN(num) ? undefined : num);
+                      }
                     }}
+                    onFocus={(e) => e.target.select()}
                   />
                 </FormControl>
                 <FormMessage />

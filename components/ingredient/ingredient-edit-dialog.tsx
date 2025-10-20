@@ -153,10 +153,11 @@ export function IngredientEditDialog({
               <Input
                 id="quantity"
                 type="number"
-                step="0.1"
+                step="0.01"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                placeholder="e.g., 500"
+                onFocus={(e) => e.target.select()}
+                placeholder="Enter quantity"
               />
             </div>
             <div className="grid gap-2">

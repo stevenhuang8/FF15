@@ -27,10 +27,13 @@ export async function getNutritionFromCache(
   const supabase = createClient();
 
   try {
+    // Normalize to lowercase for consistent matching
+    const normalizedName = foodName.toLowerCase().trim();
+
     const { data, error } = await supabase
       .from('nutrition_cache')
       .select('*')
-      .ilike('food_name', foodName)
+      .eq('food_name', normalizedName)
       .single();
 
     if (error) {
@@ -58,8 +61,11 @@ export async function saveNutritionToCache(
   const supabase = createClient();
 
   try {
+    // Normalize food name to lowercase for consistent matching
+    const normalizedName = nutrition.foodName.toLowerCase().trim();
+
     const cacheData = {
-      food_name: nutrition.foodName,
+      food_name: normalizedName,
       fdc_id: nutrition.fdcId?.toString() || null,
       calories: nutrition.calories,
       protein: nutrition.protein,
@@ -249,8 +255,11 @@ export async function createManualNutrition(
   servingSize: number = 100,
   servingUnit: string = 'g'
 ): Promise<NutritionServiceResponse<NutritionData>> {
+  // Normalize food name to lowercase
+  const normalizedName = foodName.toLowerCase().trim();
+
   const nutrition: NutritionData = {
-    foodName,
+    foodName: normalizedName,
     calories,
     protein: protein || 0,
     carbs: carbs || 0,

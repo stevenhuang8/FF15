@@ -37,14 +37,8 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 
 import { createClient } from '@/lib/supabase/client'
-import { searchFood } from '@/lib/nutrition/nutrition-service'
 import { createMealLog } from '@/lib/nutrition/meal-logging'
 import type { NutritionData, MealType, FoodItem } from '@/lib/nutrition/types'
 
@@ -150,7 +144,13 @@ export function MealLogForm({
       setFoodSearch((prev) => ({ ...prev, isSearching: true }))
 
       try {
-        const { data, error } = await searchFood(query)
+        const response = await fetch(`/api/nutrition/search?query=${encodeURIComponent(query)}`)
+
+        if (!response.ok) {
+          throw new Error('Failed to search food')
+        }
+
+        const { data, error } = await response.json()
 
         if (!error && data) {
           setFoodSearch((prev) => ({
@@ -216,7 +216,7 @@ export function MealLogForm({
   }
 
   const handleAddFood = () => {
-    if (!currentFood.nutrition || !currentFood.name || !currentFood.quantity) {
+    if (!currentFood.name || !currentFood.quantity) {
       return
     }
 
@@ -225,11 +225,27 @@ export function MealLogForm({
       return
     }
 
-    const foodItem = calculateFoodItemNutrition(
-      currentFood.nutrition,
-      quantity,
-      currentFood.unit
-    )
+    let foodItem: FoodItem
+
+    if (currentFood.nutrition) {
+      // Use nutrition data from search result
+      foodItem = calculateFoodItemNutrition(
+        currentFood.nutrition,
+        quantity,
+        currentFood.unit
+      )
+    } else {
+      // Create custom food item with default values
+      foodItem = {
+        name: currentFood.name,
+        quantity,
+        unit: currentFood.unit,
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fats: 0,
+      }
+    }
 
     const newFoodItems = [...foodItems, foodItem]
     setFoodItems(newFoodItems)
@@ -358,60 +374,63 @@ export function MealLogForm({
 
             <div className="flex gap-2">
               {/* Food Search with Auto-complete */}
-              <div className="flex-1">
-                <Popover open={foodSearch.isOpen} onOpenChange={(open) => setFoodSearch((prev) => ({ ...prev, isOpen: open }))}>
-                  <PopoverTrigger asChild>
-                    <div className="relative">
-                      <Input
-                        placeholder="Search for food..."
-                        value={foodSearch.query}
-                        onChange={(e) => {
-                          setFoodSearch((prev) => ({
-                            ...prev,
-                            query: e.target.value,
-                            isOpen: true,
-                          }))
-                        }}
-                        onFocus={() => setFoodSearch((prev) => ({ ...prev, isOpen: true }))}
-                      />
-                      {foodSearch.isSearching && (
-                        <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
-                      )}
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start">
+              <div className="flex-1 relative">
+                <div className="relative">
+                  <Input
+                    placeholder="Search for food..."
+                    value={foodSearch.query}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFoodSearch((prev) => ({
+                        ...prev,
+                        query: value,
+                        isOpen: value.length >= 2,
+                      }))
+                      setCurrentFood((prev) => ({ ...prev, name: value, nutrition: null }))
+                    }}
+                    onFocus={() => {
+                      if (foodSearch.query.length >= 2) {
+                        setFoodSearch((prev) => ({ ...prev, isOpen: true }))
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay closing to allow clicking on items
+                      setTimeout(() => {
+                        setFoodSearch((prev) => ({ ...prev, isOpen: false }))
+                      }, 200)
+                    }}
+                  />
+                  {foodSearch.isSearching && (
+                    <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+
+                {/* Dropdown Results */}
+                {foodSearch.isOpen && foodSearch.results.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 rounded-md border bg-popover shadow-md">
                     <Command>
                       <CommandList>
-                        {foodSearch.results.length === 0 && !foodSearch.isSearching && (
-                          <CommandEmpty>
-                            {foodSearch.query.length < 2
-                              ? 'Type at least 2 characters to search'
-                              : 'No food items found'}
-                          </CommandEmpty>
-                        )}
-                        {foodSearch.results.length > 0 && (
-                          <CommandGroup>
-                            {foodSearch.results.map((result, index) => (
-                              <CommandItem
-                                key={index}
-                                onSelect={() => handleFoodSelect(result)}
-                                className="cursor-pointer"
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{result.foodName}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {result.calories} cal per {result.servingSize}
-                                    {result.servingUnit}
-                                  </span>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        )}
+                        <CommandGroup>
+                          {foodSearch.results.map((result, index) => (
+                            <CommandItem
+                              key={index}
+                              onSelect={() => handleFoodSelect(result)}
+                              className="cursor-pointer"
+                            >
+                              <div className="flex flex-col">
+                                <span className="font-medium">{result.foodName}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {result.calories} cal per {result.servingSize}
+                                  {result.servingUnit}
+                                </span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
                       </CommandList>
                     </Command>
-                  </PopoverContent>
-                </Popover>
+                  </div>
+                )}
               </div>
 
               {/* Quantity Input */}
@@ -441,7 +460,7 @@ export function MealLogForm({
               <Button
                 type="button"
                 onClick={handleAddFood}
-                disabled={!currentFood.nutrition || !currentFood.quantity}
+                disabled={!currentFood.name || !currentFood.quantity}
                 size="icon"
               >
                 <Plus className="h-4 w-4" />

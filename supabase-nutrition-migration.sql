@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.nutrition_cache (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   -- Food identification
-  food_name TEXT NOT NULL,
+  food_name TEXT NOT NULL UNIQUE, -- Stored in lowercase for case-insensitive matching
   fdc_id TEXT, -- USDA FoodData Central ID
 
   -- Nutrition data per 100g serving
@@ -40,15 +40,16 @@ CREATE TABLE IF NOT EXISTS public.nutrition_cache (
   last_updated TIMESTAMPTZ DEFAULT NOW(),
   api_response JSONB, -- Store full API response for debugging
 
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-
-  -- Ensure unique entries per food name (case-insensitive)
-  UNIQUE(LOWER(food_name))
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Index for fast food name lookups
-CREATE INDEX idx_nutrition_cache_food_name ON public.nutrition_cache(LOWER(food_name));
-CREATE INDEX idx_nutrition_cache_last_updated ON public.nutrition_cache(last_updated DESC);
+CREATE INDEX IF NOT EXISTS idx_nutrition_cache_food_name
+  ON public.nutrition_cache(food_name);
+
+-- Index for sorting by last updated
+CREATE INDEX IF NOT EXISTS idx_nutrition_cache_last_updated
+  ON public.nutrition_cache(last_updated DESC);
 
 -- ============================================================================
 -- ENHANCE MEAL LOGS TABLE
@@ -109,11 +110,15 @@ CREATE OR REPLACE FUNCTION get_or_create_nutrition(
 RETURNS UUID AS $$
 DECLARE
   v_cache_id UUID;
+  v_normalized_name TEXT;
 BEGIN
-  -- Try to find existing entry (case-insensitive)
+  -- Normalize food name to lowercase
+  v_normalized_name := LOWER(TRIM(p_food_name));
+
+  -- Try to find existing entry
   SELECT id INTO v_cache_id
   FROM public.nutrition_cache
-  WHERE LOWER(food_name) = LOWER(p_food_name);
+  WHERE food_name = v_normalized_name;
 
   -- If not found, create new entry
   IF v_cache_id IS NULL THEN
@@ -125,7 +130,7 @@ BEGIN
       fats,
       data_source
     ) VALUES (
-      p_food_name,
+      v_normalized_name,
       p_calories,
       p_protein,
       p_carbs,

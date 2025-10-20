@@ -13,6 +13,7 @@ import type {
   FoodItem,
 } from './types';
 import { calculateTotalNutrition } from './nutrition-service';
+import { formatDateForDB } from '@/lib/utils';
 
 // ============================================================================
 // Meal Logging
@@ -142,17 +143,60 @@ export async function getMealLogs(
 
 /**
  * Get today's meal logs for a user
+ * Uses local timezone to properly determine "today"
  */
 export async function getTodaysMealLogs(
   userId: string
 ): Promise<NutritionServiceResponse<MealLog[]>> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const supabase = createClient();
 
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  try {
+    // Create date range for "today" in user's local timezone
+    // This properly converts to UTC for database query
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
 
-  return getMealLogs(userId, today, tomorrow);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Query for all meals logged on this date
+    // toISOString() converts local time to UTC for proper database comparison
+    const { data, error } = await supabase
+      .from('meal_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('logged_at', startOfDay.toISOString())
+      .lte('logged_at', endOfDay.toISOString())
+      .order('logged_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching today\'s meal logs:', error);
+      return { data: null, error };
+    }
+
+    // Map snake_case database fields to camelCase TypeScript types
+    const mappedData: MealLog[] = (data || []).map((row: any) => ({
+      id: row.id,
+      userId: row.user_id,
+      mealType: row.meal_type,
+      foodItems: row.food_items,
+      recipeId: row.recipe_id,
+      totalCalories: row.total_calories,
+      totalProtein: row.total_protein,
+      totalCarbs: row.total_carbs,
+      totalFats: row.total_fats,
+      notes: row.notes,
+      loggedAt: row.logged_at,
+    }));
+
+    return { data: mappedData, error: null };
+  } catch (error) {
+    console.error('Exception fetching today\'s meal logs:', error);
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error('Unknown error fetching today\'s meal logs'),
+    };
+  }
 }
 
 /**
@@ -274,14 +318,19 @@ export async function updateDailyCalorieTracking(
   const supabase = createClient();
 
   try {
-    const dateStr = date.toISOString().split('T')[0];
-
-    // Get total calories from meals for this day
+    // Create proper date range in local timezone, then convert to UTC for query
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
+
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
+    // Format date string for database record (YYYY-MM-DD in local timezone)
+    const dateStr = formatDateForDB(date);
+
+    console.log(`📅 Updating daily tracking for date: ${dateStr} (local time)`);
+
+    // Get total calories from meals for this day
     const { data: meals, error: mealsError } = await supabase
       .from('meal_logs')
       .select('total_calories, total_protein, total_carbs, total_fats')

@@ -1,11 +1,21 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Package } from 'lucide-react'
+import { Plus, Package, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { IngredientInput } from '@/components/ingredient/ingredient-input'
 import { IngredientList } from '@/components/ingredient/ingredient-list'
 import { IngredientEditDialog } from '@/components/ingredient/ingredient-edit-dialog'
@@ -20,6 +30,10 @@ export default function IngredientsPage() {
   // Edit dialog state
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
+
+  // Delete all dialog state
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Fetch ingredients
   const fetchIngredients = useCallback(async () => {
@@ -145,14 +159,52 @@ export default function IngredientsPage() {
     }
   }
 
+  // Handle delete all ingredients
+  const handleDeleteAll = async () => {
+    setIsDeleting(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/ingredients', {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete all ingredients')
+      }
+
+      // Clear local state
+      setIngredients([])
+      setShowDeleteAllDialog(false)
+    } catch (err) {
+      console.error('Error deleting all ingredients:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete all ingredients')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-8 px-4 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Package className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Ingredient Inventory</h1>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <Package className="h-8 w-8 text-primary" />
+              <h1 className="text-3xl font-bold">Ingredient Inventory</h1>
+            </div>
+            {ingredients.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowDeleteAllDialog(true)}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete All
+              </Button>
+            )}
           </div>
           <p className="text-muted-foreground">
             Manage your ingredients and track expiry dates
@@ -214,6 +266,29 @@ export default function IngredientsPage() {
           onOpenChange={setShowEditDialog}
           onSave={handleSaveEdit}
         />
+
+        {/* Delete All Confirmation Dialog */}
+        <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete All Ingredients?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete all {ingredients.length} ingredient
+                {ingredients.length !== 1 ? 's' : ''} from your inventory.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAll}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete All'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   )

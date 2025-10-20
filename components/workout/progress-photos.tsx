@@ -14,6 +14,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { format } from 'date-fns'
+import { getTodayPacific } from '@/lib/utils'
 import {
   Upload,
   Camera,
@@ -89,7 +90,7 @@ export function ProgressPhotos({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
   const [takenDate, setTakenDate] = useState(
-    new Date().toISOString().split('T')[0]
+    getTodayPacific()
   )
 
   const fileInputRef = useRef<HTMLInputElement>(null)

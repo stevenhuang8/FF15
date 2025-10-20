@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 
 import { createClient } from '@/lib/supabase/client'
 import { logHealthMetrics, getHealthMetricsByDate } from '@/lib/supabase/health-metrics'
+import { getTodayPacific } from '@/lib/utils'
 
 // ============================================================================
 // Form Schema
@@ -92,7 +93,7 @@ export function HealthMetricsForm({
   } = useForm<HealthMetricsFormData>({
     resolver: zodResolver(healthMetricsSchema),
     defaultValues: {
-      date: defaultDate || new Date().toISOString().split('T')[0],
+      date: defaultDate || getTodayPacific(),
       weight: '',
       bodyFatPercentage: '',
       waist: '',
@@ -218,7 +219,7 @@ export function HealthMetricsForm({
               id="date"
               type="date"
               {...register('date')}
-              max={new Date().toISOString().split('T')[0]}
+              max={getTodayPacific()}
             />
             {errors.date && (
               <p className="text-sm text-red-500">{errors.date.message}</p>

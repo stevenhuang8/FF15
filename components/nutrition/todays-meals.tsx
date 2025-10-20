@@ -26,6 +26,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { getTodaysMealLogs, deleteMealLog } from '@/lib/nutrition/meal-logging'
 import type { MealLog, MealType } from '@/lib/nutrition/types'
+import { formatPacificTime } from '@/lib/utils'
 
 // ============================================================================
 // Types
@@ -232,7 +233,7 @@ export function TodaysMeals({ refreshKey = 0, onLogMeal, onMealDeleted }: Todays
 
                     {/* Time */}
                     <p className="text-xs text-muted-foreground">
-                      {new Date(meal.loggedAt).toLocaleTimeString('en-US', {
+                      {formatPacificTime(meal.loggedAt, {
                         hour: 'numeric',
                         minute: '2-digit',
                       })}

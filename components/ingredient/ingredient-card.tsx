@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import type { Ingredient } from '@/types/ingredient'
-import { cn } from '@/lib/utils'
+import { cn, formatPacificDate } from '@/lib/utils'
 
 interface IngredientCardProps {
   ingredient: Ingredient
@@ -78,7 +78,7 @@ function formatExpiryDate(expiryDate: Date | null | undefined): string {
   } else if (diffDays <= 7) {
     return `Expires in ${diffDays} days`
   } else {
-    return date.toLocaleDateString('en-US', {
+    return formatPacificDate(date, {
       month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,

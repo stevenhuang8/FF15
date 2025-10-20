@@ -151,3 +151,41 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+/**
+ * DELETE /api/ingredients
+ * Delete all ingredients for the authenticated user
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+
+    // Get authenticated user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Delete all ingredients for the user
+    const { error, count } = await supabase
+      .from('ingredients')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('❌ Database error:', error)
+      return NextResponse.json({ error: 'Failed to delete ingredients' }, { status: 500 })
+    }
+
+    console.log(`✅ Deleted ${count || 0} ingredients for user ${user.id}`)
+
+    return NextResponse.json({ message: 'All ingredients deleted successfully', count }, { status: 200 })
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

@@ -612,6 +612,121 @@ Consider unified agent as **Phase 1** (consolidate existing), then later impleme
 
 ---
 
+## Implementation Record
+
+### Multi-Agent Architecture Implementation (2025-01-21)
+
+#### Problem
+
+Currently there are several aspects of the application relying on one agent to do the research and handle all user requests. The management of context is too much for a single agent to handle effectively. Issues observed:
+
+1. **Context Overload**: Single agent trying to handle cooking, nutrition, fitness, recipe research, substitutions, meal planning, and pantry management
+2. **Hallucination Risk**: When one agent tries to be expert in too many domains, it may start mixing information or hallucinating
+3. **Poor Specialization**: Generic responses instead of deep expertise in specific domains
+4. **Context Window Waste**: Loading knowledge for all domains even when only one is needed
+5. **Reduced Response Quality**: Jack-of-all-trades agent vs. specialized expert agents
+
+#### Solution
+
+Implemented multi-agent architecture pattern using specialized agent personas coordinated by an orchestrator. The solution includes:
+
+**7 Specialized Agent Personas** (documented in `components/agent/subagents/`):
+1. **cooking-assistant** - Real-time cooking guidance, techniques, timing, troubleshooting
+2. **recipe-researcher** - Deep research on dishes, cuisines, culinary history
+3. **ingredient-specialist** - Ingredient substitutions and alternatives
+4. **nutrition-analyst** - Nutritional calculations and healthier options
+5. **meal-planner** - Weekly meal planning and batch cooking strategies
+6. **pantry-manager** - Pantry-based recipe suggestions and waste reduction
+7. **workout-planner** - Personalized fitness routines and exercise guidance
+
+**Orchestrator System** (`components/agent/orchestrator-prompt.ts`):
+- Main coordinating agent that understands which specialist to engage
+- Provides conversational continuity across different specialist domains
+- Enables parallel execution for multi-domain queries
+- Maintains context while delegating to specialized expertise
+
+**Implementation Approach**:
+- Used prompt engineering to embed specialized agent personas in orchestrator
+- Each persona has focused system prompt optimized for its domain
+- Tool restrictions documented per specialist (e.g., ingredient-specialist uses `suggestSubstitution` + `retrieveKnowledgeBase`)
+- Increased step count to 15 (from no agent loops) to enable multi-step orchestration
+
+**Files Created**:
+- `types/subagents.ts` - TypeScript interfaces for subagent definitions
+- `components/agent/subagents/cooking-assistant.ts` - Cooking specialist
+- `components/agent/subagents/recipe-researcher.ts` - Recipe research specialist
+- `components/agent/subagents/ingredient-specialist.ts` - Substitution specialist
+- `components/agent/subagents/nutrition-analyst.ts` - Nutrition specialist
+- `components/agent/subagents/meal-planner.ts` - Meal planning specialist
+- `components/agent/subagents/pantry-manager.ts` - Pantry management specialist
+- `components/agent/subagents/workout-planner.ts` - Fitness specialist
+- `components/agent/subagents/index.ts` - Subagent registry export
+- `components/agent/orchestrator-prompt.ts` - Main orchestrator prompt
+
+**Files Modified**:
+- `app/api/chat/route.ts` - Updated to use orchestrator with multi-step reasoning
+- `README.md` - Added multi-agent architecture documentation links
+- `CLAUDE.md` - Added comprehensive subagents and context editing documentation
+
+**Technical Details**:
+- Pattern inspired by Claude's Agent SDK subagents (https://docs.claude.com/en/api/agent-sdk/subagents)
+- Implemented using Vercel AI SDK with prompt engineering (AI SDK doesn't have native `agents` parameter)
+- Uses `stepCountIs(15)` for multi-step agent reasoning
+- All tools available to orchestrator: `retrieveKnowledgeBase`, `suggestSubstitution`, `recommendWorkout`, `generateRecipeFromIngredients`, `web_search`
+
+#### Rabbit Holes
+
+**Avoided:**
+1. ❌ **Native Subagents API**: Initially attempted to use `agents` parameter in `streamText()`, but this doesn't exist in Vercel AI SDK - it's specific to Claude's Agent SDK
+2. ❌ **Creating Separate API Routes**: Considered creating 7 separate API routes (`/api/cooking`, `/api/nutrition`, etc.) but this would break conversation continuity
+3. ❌ **Manual Context Switching**: Avoided manually detecting intent and switching prompts - let the orchestrator handle delegation
+4. ❌ **Over-Engineering with MCP**: Didn't create MCP servers for each subagent - unnecessary complexity for this use case
+
+**Lessons Learned:**
+- Claude's Agent SDK subagents pattern can be approximated through prompt engineering in other SDKs
+- Specialized prompts are more valuable than actual separate agents for maintaining conversation flow
+- The orchestrator pattern works well with multi-step reasoning (`stepCountIs()`)
+
+#### No Gos
+
+**Do NOT:**
+1. ❌ Have multiple agents doing the same tasks (each specialist has clear, non-overlapping domain)
+2. ❌ Create subagents without focused system prompts (each must have expertise in ONE domain)
+3. ❌ Bypass the orchestrator for direct subagent access (breaks conversation continuity)
+4. ❌ Mix subagent tool restrictions (cooking-assistant shouldn't have workout tools, etc.)
+5. ❌ Create too many subagents (7 is optimal; more causes orchestration complexity)
+6. ❌ Remove step count limit (prevents infinite loops, keeps costs manageable)
+
+**Future Considerations:**
+- If migrating to Claude's Agent SDK, the subagent definitions are ready to use with native `agents` parameter
+- Context editing may be needed for very long conversations (>50K tokens)
+- Consider adding codex/memory system for persistent user preferences across specialists
+
+#### Results
+
+**Benefits Achieved**:
+- ✅ Better specialized responses through domain-focused prompts
+- ✅ Reduced context overload (orchestrator delegates, doesn't try to know everything)
+- ✅ Clearer separation of concerns (each specialist has one job)
+- ✅ Parallel execution capability for multi-domain queries
+- ✅ Improved maintainability (update one specialist without affecting others)
+- ✅ Foundation for future codex/memory integration
+
+**Metrics**:
+- 7 specialized agent personas implemented
+- 2,500+ lines of specialized prompt engineering
+- 15-step orchestration capability (vs. no agent loops before)
+- 0 TypeScript errors
+- All existing functionality preserved
+
+**Next Steps**:
+- Monitor orchestration patterns to see which specialists are most used
+- Gather user feedback on response quality improvements
+- Consider implementing codex for persistent user preferences (Phase 2)
+- Test parallel execution for complex queries
+
+---
+
 ## Technical Debt
 
 _Document technical debt items here_

@@ -44,6 +44,11 @@ Open [http://localhost:3000](http://localhost:3000) to chat with the AI assistan
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS
 - [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
 
+### Multi-Agent Architecture
+
+- [Claude Agent SDK - Subagents](https://docs.claude.com/en/api/agent-sdk/subagents) - Build specialized AI sub-agents with isolated contexts, parallel execution, and tool restrictions
+- [Claude Context Editing](https://docs.claude.com/en/docs/build-with-claude/context-editing) - Automatic conversation history management for long-running agents
+
 ## Architecture & Data Flow
 
 ```text

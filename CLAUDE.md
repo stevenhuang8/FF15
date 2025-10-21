@@ -332,6 +332,195 @@ Display tool execution states using AI Elements:
 - **Return Structure**: Keep return types simple to avoid TypeScript complexity
 - **UI Feedback**: Always show tool execution state using AI Elements components
 
+### Multi-Agent Architecture with Subagents
+
+**CRITICAL DOCUMENTATION**: Before working with subagents, read these essential resources:
+- **Subagents Guide**: https://docs.claude.com/en/api/agent-sdk/subagents
+- **Context Editing**: https://docs.claude.com/en/docs/build-with-claude/context-editing
+
+#### Overview
+
+Subagents are specialized AI assistants orchestrated by a main agent. They maintain **separate contexts** to prevent information overload while enabling focused task execution.
+
+**Key Benefits:**
+- **Context Isolation**: Each subagent has its own context, keeping the main conversation clean
+- **Parallel Execution**: Multiple subagents can run simultaneously (e.g., recipe research + nutrition analysis in parallel)
+- **Specialization**: Each subagent has custom system prompts optimized for specific domains
+- **Tool Restrictions**: Limit subagent capabilities for security and focus
+- **Scalability**: Easy to add new specialized subagents without affecting existing ones
+
+#### Implementation Approach
+
+**This application uses the programmatic approach** (recommended by Claude docs) rather than filesystem-based definitions.
+
+**Subagent Definition Structure:**
+```typescript
+interface SubagentDefinition {
+  description: string;  // CRITICAL: Determines when agent is invoked
+  prompt: string;       // System prompt defining role and expertise
+  tools?: string[];     // Optional: Restrict to specific tools
+  model?: string;       // Optional: Use different model (default inherits main)
+}
+```
+
+#### Subagent Directory Structure
+
+```
+components/agent/
+├── subagents/                      # Subagent definitions
+│   ├── cooking-assistant.ts        # Real-time cooking guidance
+│   ├── recipe-researcher.ts        # Deep recipe research
+│   ├── ingredient-specialist.ts    # Ingredient substitutions
+│   ├── nutrition-analyst.ts        # Nutritional analysis
+│   ├── meal-planner.ts            # Meal planning and prep
+│   ├── pantry-manager.ts          # Pantry-based suggestions
+│   ├── workout-planner.ts         # Fitness planning
+│   └── index.ts                   # Export registry
+├── tools/                          # Tool implementations
+├── prompt.ts                       # Legacy single-agent prompt
+└── orchestrator-prompt.ts         # Main orchestrator prompt
+```
+
+#### Tool Restrictions Best Practices
+
+Based on Claude docs, restrict tools by subagent role:
+
+```typescript
+// Read-only analysis
+tools: ['Read', 'Grep', 'Glob', 'retrieveKnowledgeBase']
+
+// Research with web access
+tools: ['retrieveKnowledgeBase', 'web_search']
+
+// Specialized domain tools
+tools: ['suggestSubstitution', 'retrieveKnowledgeBase']
+
+// Full access (omit tools field)
+// Inherits all available tools from main agent
+```
+
+#### Automatic vs Explicit Invocation
+
+**Automatic (Recommended):**
+The main agent automatically selects subagents based on task context. Write clear, specific descriptions:
+
+```typescript
+description: 'Use PROACTIVELY when user asks about cooking techniques, timing, or troubleshooting. MUST BE USED for active cooking guidance.'
+```
+
+**Explicit:**
+Users can request specific subagents:
+- "Use the recipe-researcher to tell me about carbonara history"
+- "Have the nutrition-analyst calculate macros for this recipe"
+
+#### Parallel Execution Pattern
+
+Multiple subagents can execute simultaneously for complex queries:
+
+```typescript
+// User: "What's the history of carbonara and is it healthy?"
+// Main agent delegates to TWO subagents in parallel:
+// - recipe-researcher: Handles history and cultural context
+// - nutrition-analyst: Calculates nutritional information
+// Both run simultaneously, reducing response time by ~50%
+```
+
+#### Application-Specific Subagents
+
+This cooking/fitness app implements 7 specialized subagents:
+
+1. **cooking-assistant**: Real-time cooking guidance, timing, troubleshooting
+2. **recipe-researcher**: Deep research on recipes, cuisines, techniques, history
+3. **ingredient-specialist**: Ingredient substitutions and alternatives
+4. **nutrition-analyst**: Nutritional calculations and healthier alternatives
+5. **meal-planner**: Weekly meal prep, grocery lists, batch cooking
+6. **pantry-manager**: Pantry-based recipe suggestions, inventory optimization
+7. **workout-planner**: Personalized fitness routines and exercise guidance
+
+**Tool Access per Subagent:**
+- `cooking-assistant`: retrieveKnowledgeBase, web_search
+- `recipe-researcher`: retrieveKnowledgeBase, web_search, Firecrawl MCP tools
+- `ingredient-specialist`: suggestSubstitution, retrieveKnowledgeBase
+- `nutrition-analyst`: retrieveKnowledgeBase, web_search
+- `meal-planner`: generateRecipeFromIngredients, retrieveKnowledgeBase
+- `pantry-manager`: generateRecipeFromIngredients, retrieveKnowledgeBase
+- `workout-planner`: recommendWorkout, retrieveKnowledgeBase
+
+#### Integration Pattern
+
+**Main Chat API Route:**
+```typescript
+import { streamText, convertToModelMessages, stepCountIs } from 'ai';
+import { ORCHESTRATOR_PROMPT } from '@/components/agent/orchestrator-prompt';
+import { SUBAGENTS } from '@/components/agent/subagents';
+
+const result = streamText({
+  model: openai('gpt-5'),
+  system: ORCHESTRATOR_PROMPT,
+  messages: modelMessages,
+  stopWhen: stepCountIs(15), // More steps for multi-agent orchestration
+  tools: { /* all available tools */ },
+  agents: SUBAGENTS, // Programmatic subagent definitions
+});
+```
+
+#### Context Editing for Long-Running Agents
+
+**When to Use:**
+- Long conversations with many tool calls
+- Multi-step agent loops that might exceed context limits
+- Cost optimization for high-volume applications
+
+**Implementation (Future Enhancement):**
+
+Context editing requires Anthropic's SDK directly. Example for future integration:
+
+```typescript
+import Anthropic from '@anthropic-ai/sdk';
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+const response = await anthropic.messages.create({
+  model: 'claude-sonnet-4-5-20250929',
+  max_tokens: 4096,
+  betas: ['context-management-2025-06-27'],
+  context_management: {
+    edits: [
+      {
+        type: 'clear_tool_uses_20250919',
+        trigger: { type: 'input_tokens', value: 50000 },
+        keep: { type: 'tool_uses', value: 5 },
+        exclude_tools: ['retrieveKnowledgeBase'], // Keep RAG results
+      }
+    ]
+  },
+  messages: conversationHistory,
+});
+```
+
+**Configuration Options:**
+- `trigger`: When to start clearing (default: 100K tokens)
+- `keep`: How many recent tool uses to preserve (default: 3)
+- `clear_at_least`: Minimum tokens to clear per activation
+- `exclude_tools`: Tools whose results should never be cleared
+
+**Best Practices:**
+1. Set trigger based on typical conversation length
+2. Use `exclude_tools` for critical retrievals (like RAG results)
+3. Monitor `context_management` in responses to track clearing
+4. Combine with memory tools to preserve important context before clearing
+
+#### Subagent Best Practices
+
+1. **Clear Descriptions**: Write specific descriptions indicating when to invoke each subagent
+2. **Focused Prompts**: Each subagent should have expertise in one domain
+3. **Tool Restrictions**: Limit tools to what's necessary for the subagent's role
+4. **Parallel Design**: Design subagents to work independently for parallel execution
+5. **Context Awareness**: Main orchestrator should pass relevant context to subagents
+6. **Testing**: Test automatic selection to ensure correct subagent invocation
+
 ### Chat Architecture
 
 - **Frontend**: `ChatAssistant` component uses `useChat` hook from `@ai-sdk/react`

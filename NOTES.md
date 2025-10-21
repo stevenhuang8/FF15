@@ -337,6 +337,281 @@ Database error: {
 
 ---
 
+## Architectural Plans & Proposals
+
+### 1. Unified Agent Architecture Plan
+
+**Date Proposed**: 2025-01-21
+
+**Objective**: Combine all three existing agents (`/api/chat`, `/api/rag-agent`, `/api/agent-with-mcp-tools`) into a single unified agent with all tools and capabilities.
+
+#### Current State
+
+The application currently has **3 distinct chat agents**:
+
+1. **Basic Chat Assistant** (`/api/chat`)
+   - Tools: `suggestSubstitution`, `web_search`
+   - No agent loops (basic chat)
+   - System prompt: Conversational recipe assistant
+
+2. **RAG-Enabled Cooking Agent** (`/api/rag-agent`)
+   - Tools: `retrieveKnowledgeBaseSimple`, `suggestSubstitution`
+   - Agent with 10-step reasoning (`stepCountIs(10)`)
+   - System prompt: Knowledge base specialist
+   - Accesses Vectorize for cooking knowledge
+
+3. **Web Scraper Agent with MCP Tools** (`/api/agent-with-mcp-tools`)
+   - Tools: Dynamic Firecrawl MCP tools
+   - Agent with 10-step reasoning (`stepCountIs(10)`)
+   - System prompt: Web scraping specialist
+
+#### Implementation Plan
+
+**Phase 1: Tool Consolidation**
+1. Merge all tools into unified configuration in `/app/api/chat/route.ts`:
+   - `retrieveKnowledgeBaseSimple` (RAG)
+   - `suggestSubstitution` (shared)
+   - `web_search` (OpenAI)
+   - MCP Firecrawl tools (dynamic)
+   - `recommendWorkout` (currently unused)
+   - `generateRecipeFromIngredients` (currently unused)
+2. Add `stopWhen: stepCountIs(10)` for multi-step reasoning
+3. Integrate MCP client initialization with graceful fallback
+4. Add comprehensive tool call logging
+
+**Phase 2: System Prompt Unification**
+1. Create `/components/agent/unified-prompt.ts`
+2. Combine capabilities from all three existing prompts
+3. Define clear tool usage priorities:
+   - Cooking/recipes → `retrieveKnowledgeBase` first, fallback to `web_search`
+   - Ingredient substitutions → `suggestSubstitution`
+   - Fitness → `recommendWorkout`
+   - Website content → Firecrawl MCP tools
+   - Current info → `web_search`
+4. Maintain conversational, friendly tone
+
+**Phase 3: Frontend Simplification**
+1. Update all pages to use default `/api/chat`:
+   - `/simple-agent` - Already correct ✓
+   - `/rag-agent` - Remove `api` prop from `ChatAssistant`
+   - `/agent-with-mcp-tools` - Remove `api` prop from `ChatAssistant`
+2. Consider consolidating pages into single `/chat` page
+
+**Phase 4: Cleanup & Optimization**
+1. Remove deprecated routes:
+   - Delete `/app/api/rag-agent/route.ts`
+   - Delete `/app/api/agent-with-mcp-tools/route.ts`
+   - Archive old prompt files
+2. Enhance error handling for MCP failures
+3. Implement comprehensive testing
+4. Monitor performance and costs
+
+#### Pros and Cons Analysis
+
+##### ✅ PROS (9 High + 3 Medium Impact)
+
+| Benefit | Impact | Details |
+|---------|--------|---------|
+| **Unified User Experience** | High | One intelligent agent vs. users choosing which agent to use |
+| **Simpler Architecture** | High | One API endpoint instead of three |
+| **Code Maintainability** | High | Single source of truth, easier debugging |
+| **Cross-Capability Conversations** | High | Recipe → workout → web research in same conversation |
+| **Reduced Code Duplication** | Medium | Eliminate duplicate error handling and logic |
+| **Better Tool Orchestration** | High | Combine multiple tools in single response |
+| **Simplified Frontend** | Medium | All pages use default ChatAssistant |
+| **Future-Proof** | High | Add new tools to one place only |
+| **Conversation Context** | High | Full history available across capabilities |
+| **Resource Efficiency** | Medium | One MCP connection per conversation |
+
+##### ❌ CONS (2 High + 7 Medium + 2 Low Impact)
+
+| Drawback | Impact | Details |
+|----------|--------|---------|
+| **Increased Token Usage** | High | More tools = longer prompts = higher costs |
+| **Higher Latency** | Medium | Agent loops run on every request (+1-2s) |
+| **Tool Confusion Risk** | Medium | More tools = higher chance of wrong tool selection |
+| **Complex System Prompt** | Medium | Harder to optimize for specific use cases |
+| **MCP Dependency** | Medium | MCP failure affects entire agent (mitigated) |
+| **Debugging Complexity** | Medium | Harder to isolate issues with mixed tools |
+| **Higher Costs** | High | GPT-5 + agent loops more expensive |
+| **Loss of Specialization** | Low | Specialized prompts may perform better |
+| **Performance Overhead** | Low | Loading all tools adds startup time |
+| **Testing Complexity** | Medium | More tool interaction combinations to test |
+
+#### Cost-Benefit Analysis
+
+**Estimated Cost Increase**: 15-25% per request (larger context + agent loops)
+
+**Estimated Implementation Time**: 3-4 hours
+
+**User Experience Improvement**: 🚀 **Significant** (seamless capability switching)
+
+**Recommendation**: ✅ **Proceed** - UX improvements outweigh cost increases
+
+#### Risk Mitigation Strategies
+
+1. **Token Usage Optimization**
+   - Use shorter, clearer tool descriptions
+   - Consider dynamic tool loading based on context
+   - Remove rarely-used tools if needed
+
+2. **Performance Optimization**
+   - Implement tool result caching
+   - Use `reasoning_effort: "low"` (already configured)
+   - Consider conditional agent loops for simple queries
+
+3. **Tool Confusion Prevention**
+   - Clear tool descriptions with usage examples
+   - Explicit tool priority in system prompt
+   - Monitor tool call patterns and adjust
+
+4. **Graceful Degradation**
+   - Try-catch around MCP initialization
+   - Fallback strategies when tools fail
+   - Clear error messages to users
+
+#### Alternative Approaches Considered
+
+**Option A: Unified Agent (Recommended)** ✅
+- One agent with all tools
+- Best UX, slightly higher cost
+- Best for production apps with diverse use cases
+
+**Option B: Smart Router Agent** ⚠️
+- Entry point routes to specialized agents
+- Lower per-request cost, maintained specialization
+- Better for cost-sensitive high-volume apps
+
+**Option C: Hybrid Approach** 💡
+- Unified agent with dynamic tool loading
+- Best of both worlds, more complexity
+- Consider for future optimization
+
+**Option D: Keep Separate (Status Quo)** ❌
+- Multiple specialized agents
+- Lower cost per agent, worse UX
+- User friction outweighs benefits
+
+#### Implementation Code Examples
+
+**Unified Agent Route Structure**:
+```typescript
+// app/api/chat/route.ts (unified)
+import { UNIFIED_SYSTEM_INSTRUCTIONS } from "@/components/agent/unified-prompt";
+import {
+  retrieveKnowledgeBaseSimple,
+  suggestSubstitution,
+  recommendWorkout,
+  generateRecipeFromIngredients,
+} from "@/components/agent/tools";
+import { getFirecrawlMCPClient } from "@/lib/mcp";
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages, stepCountIs } from "ai";
+
+export async function POST(request: NextRequest) {
+  const { messages } = await request.json();
+  const modelMessages = convertToModelMessages(messages);
+
+  // Initialize MCP tools with fallback
+  let mcpTools = {};
+  try {
+    const firecrawlClient = getFirecrawlMCPClient();
+    await firecrawlClient.connect();
+    mcpTools = await firecrawlClient.getTools();
+  } catch (error) {
+    console.warn("⚠️ MCP tools unavailable:", error);
+  }
+
+  const result = streamText({
+    model: openai("gpt-5"),
+    system: UNIFIED_SYSTEM_INSTRUCTIONS,
+    messages: modelMessages,
+    stopWhen: stepCountIs(10),
+    tools: {
+      retrieveKnowledgeBase: retrieveKnowledgeBaseSimple,
+      suggestSubstitution,
+      generateRecipeFromIngredients,
+      recommendWorkout,
+      web_search: openai.tools.webSearch({ searchContextSize: "low" }),
+      ...mcpTools,
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+**Unified System Prompt Structure**:
+```typescript
+// components/agent/unified-prompt.ts
+export const UNIFIED_SYSTEM_INSTRUCTIONS = `
+You are a comprehensive AI assistant specializing in cooking, recipes, nutrition, fitness, and information retrieval.
+
+## Core Capabilities
+
+### 1. Recipe & Cooking Assistance
+- Conversational recipe recommendations based on user preferences
+- Gather cuisine type, meal heaviness, proteins, dietary restrictions
+- Detailed recipes with ingredients and instructions
+- Ingredient substitutions using suggestSubstitution tool
+
+### 2. Knowledge Base Access
+- Search cooking/culinary knowledge base with retrieveKnowledgeBase
+- Cooking techniques, recipes, ingredients, food science
+- Always cite sources from knowledge base
+
+### 3. Fitness & Wellness
+- Personalized workouts via recommendWorkout tool
+- Consider goals, equipment, time, fitness level
+
+### 4. Web Research
+- web_search for current info or external recipes
+- Firecrawl tools for deep website scraping
+
+## Tool Usage Priority
+1. Cooking/recipes: retrieveKnowledgeBase → web_search
+2. Substitutions: suggestSubstitution
+3. Fitness: recommendWorkout
+4. Website content: Firecrawl MCP tools
+5. Current events: web_search
+
+## Response Style
+- Friendly and conversational
+- Use markdown formatting
+- Cite sources
+- Gather preferences naturally
+`;
+```
+
+#### Related to Existing Feature Request
+
+This unified agent proposal is **complementary but different** from Feature Request #1 (Multi-Agent Architecture with Specialized Sub-Agents):
+
+- **Feature Request #1**: Split into 6+ specialized sub-agents with delegation
+- **This Proposal**: Unify 3 existing agents into 1 comprehensive agent
+
+Both approaches have merit:
+- Unified agent = Better for small-medium apps, simpler architecture
+- Multi-agent delegation = Better for large-scale apps, maximum specialization
+
+Consider unified agent as **Phase 1** (consolidate existing), then later implement **Phase 2** (specialized sub-agents) if needed.
+
+#### Status
+
+**Status**: Proposed - NOT YET IMPLEMENTED
+
+**Decision Required**: Approve/reject before proceeding with implementation
+
+**Next Steps (if approved)**:
+1. Create unified system prompt
+2. Update `/app/api/chat/route.ts` with all tools
+3. Update frontend pages
+4. Test all tool interactions
+5. Clean up deprecated routes
+6. Update documentation
+
+---
+
 ## Technical Debt
 
 _Document technical debt items here_

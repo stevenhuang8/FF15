@@ -12,6 +12,7 @@ import { nutritionAnalyst } from "./nutrition-analyst";
 import { mealPlanner } from "./meal-planner";
 import { pantryManager } from "./pantry-manager";
 import { workoutPlanner } from "./workout-planner";
+import { profileManager } from "./profile-manager";
 
 /**
  * Complete registry of all subagents
@@ -35,6 +36,7 @@ export const SUBAGENTS: SubagentRegistry = {
   "meal-planner": mealPlanner,
   "pantry-manager": pantryManager,
   "workout-planner": workoutPlanner,
+  "profile-manager": profileManager,
 };
 
 /**
@@ -48,4 +50,5 @@ export {
   mealPlanner,
   pantryManager,
   workoutPlanner,
+  profileManager,
 };

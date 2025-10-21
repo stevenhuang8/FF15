@@ -730,3 +730,123 @@ Implemented multi-agent architecture pattern using specialized agent personas co
 ## Technical Debt
 
 _Document technical debt items here_
+
+---
+
+## Conversational Data Logging Feature (2025-01-21)
+
+### Problem
+
+Users must manually navigate to specific tabs/pages to input dietary preferences, allergies, workouts, and meal logs. This creates friction and interrupts the natural conversation flow with the AI agent. The application collects rich user data (via forms) but doesn't leverage the conversational interface for data entry, limiting the AI assistant's practical utility.
+
+### Solution
+
+Enable users to log data through natural conversation by:
+
+1. **Create 6 new AI tools** for data operations:
+   - `searchFoodNutrition` - Search USDA FoodData Central API with AI estimate fallback
+   - `logMeal` - Log meals with confirmation workflow
+   - `logWorkout` - Log workouts with smart defaults for missing data
+   - `updateDietaryPreferences` - Update dietary restrictions
+   - `updateAllergies` - Update allergy list
+   - `updateFitnessGoals` - Update fitness goals and macro targets
+
+2. **Create new profile-manager subagent**:
+   - Handles dietary preferences, allergies, fitness goals, macro targets
+   - Tools: `updateDietaryPreferences`, `updateAllergies`, `updateFitnessGoals`
+
+3. **Extend existing subagents**:
+   - **nutrition-analyst**: Add `logMeal`, `searchFoodNutrition` tools
+   - **workout-planner**: Add `logWorkout` tool
+
+4. **Confirmation-first pattern**:
+   - All tools return preview data first (don't save immediately)
+   - User confirms via follow-up message ("yes", "looks good", etc.)
+   - Agent executes save operation after confirmation
+   - Display success message with what was saved
+
+5. **Hybrid nutrition accuracy**:
+   - Try USDA API first for precise data
+   - Fall back to AI estimates if food not found
+   - Mark data source in logs (USDA vs. Estimated)
+
+6. **Smart workout defaults**:
+   - If user says "I just ran", assume 30 min, medium intensity
+   - If user provides specifics, use exact values
+   - Always show assumptions in confirmation preview
+
+### Rabbit Holes
+
+**Avoided:**
+- ❌ **Custom unit conversion logic** - Keep existing unit assumptions from forms, add this as future enhancement
+- ❌ **Duplicate logging systems** - Reuse existing `createMealLog()`, `logWorkout()`, etc. from lib
+- ❌ **Agent-exclusive tools** - Make tools available to all agents via registry; let orchestrator route appropriately
+- ❌ **Over-engineered confirmation UI** - Use existing `<Tool>` component pattern from AI Elements
+- ❌ **Batching multiple operations** - Keep each logging action as single confirmation cycle for clarity
+- ❌ **New database tables** - Use existing schema (`meal_logs`, `workout_logs`, `user_profiles`)
+
+### No Gos
+
+**Do NOT:**
+1. ❌ **Auto-save without confirmation** - Always require user approval before writing to database
+2. ❌ **Hallucinate nutrition data** - Must use USDA API when possible; clearly mark AI estimates
+3. ❌ **Break existing forms** - Forms must continue to work independently; chat logging is additive feature
+4. ❌ **Mix AI estimate and USDA data without disclosure** - Always tell user the data source
+5. ❌ **Create complex multi-step wizards** - Keep confirmation to single message exchange
+6. ❌ **Store unstructured data** - All logged data must match existing database schemas/types
+
+### Implementation Files
+
+**Files Created (10 new files)**:
+1. `/types/usda-api.ts` - USDA API type definitions
+2. `/lib/nutrition/usda-api.ts` - USDA FoodData Central API helper
+3. `/lib/nutrition/ai-nutrition-estimator.ts` - AI-based nutrition estimation fallback
+4. `/components/agent/tools/search-food-nutrition.ts` - Food nutrition search tool
+5. `/components/agent/tools/log-meal.ts` - Meal logging tool
+6. `/components/agent/tools/log-workout.ts` - Workout logging tool
+7. `/components/agent/tools/update-dietary-preferences.ts` - Dietary preferences tool
+8. `/components/agent/tools/update-allergies.ts` - Allergies management tool
+9. `/components/agent/tools/update-fitness-goals.ts` - Fitness goals tool
+10. `/components/agent/subagents/profile-manager.ts` - Profile manager subagent
+
+**Files Modified (4 files)**:
+1. `/components/agent/subagents/nutrition-analyst.ts` - Added meal logging tools
+2. `/components/agent/subagents/workout-planner.ts` - Added workout logging tool
+3. `/components/agent/tools/index.ts` - Exported new tools
+4. `/components/agent/subagents/index.ts` - Added profile-manager to registry
+
+### Environment Variables Required
+
+```env
+USDA_API_KEY=your_key_here  # Get from https://fdc.nal.usda.gov/api-key-signup.html
+```
+
+### Confirmation Workflow Pattern
+
+```
+User Message
+  ↓
+Agent calls tool (e.g., logMeal)
+  ↓
+Tool returns preview data (no DB write)
+  ↓
+Tool output displays in UI
+  ↓
+User confirms ("yes", "looks good")
+  ↓
+Agent detects confirmation
+  ↓
+Agent calls save operation
+  ↓
+Success message displayed
+```
+
+### Testing Requirements
+
+- ✅ "I'm vegetarian" → Confirmation → Saved to profile
+- ✅ "I ate pasta for lunch" → USDA lookup → Confirmation → Logged
+- ✅ "I did 45 min of cycling" → Calorie calculation → Confirmation → Logged
+- ✅ Data appears correctly in existing forms after chat logging
+- ✅ No TypeScript errors (`pnpm tsc --noEmit`)
+
+---

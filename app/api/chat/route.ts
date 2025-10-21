@@ -4,6 +4,21 @@ import {
   retrieveKnowledgeBaseSimple,
   recommendWorkout,
   generateRecipeFromIngredients,
+  // Meal logging tools
+  logMealPreview,
+  confirmMealLog,
+  // Workout logging tools
+  logWorkoutPreview,
+  confirmWorkoutLog,
+  // Profile management tools
+  updateDietaryPreferences,
+  confirmDietaryPreferencesUpdate,
+  updateAllergiesPreview,
+  confirmAllergiesUpdate,
+  updateFitnessGoalsPreview,
+  confirmFitnessGoalsUpdate,
+  // User context retrieval
+  getUserContext,
 } from "@/components/agent/tools";
 import { SUBAGENTS } from "@/components/agent/subagents";
 import { openai } from "@ai-sdk/openai";
@@ -67,10 +82,29 @@ export async function POST(request: NextRequest) {
         // RAG knowledge base
         retrieveKnowledgeBase: retrieveKnowledgeBaseSimple,
 
+        // User context for personalization
+        getUserContext,
+
         // Specialized tools
         suggestSubstitution,
         recommendWorkout,
         generateRecipeFromIngredients,
+
+        // Meal logging (two-step preview/confirm pattern)
+        logMealPreview,
+        confirmMealLog,
+
+        // Workout logging (two-step preview/confirm pattern)
+        logWorkoutPreview,
+        confirmWorkoutLog,
+
+        // Profile management (two-step preview/confirm pattern)
+        updateDietaryPreferences,
+        confirmDietaryPreferencesUpdate,
+        updateAllergiesPreview,
+        confirmAllergiesUpdate,
+        updateFitnessGoalsPreview,
+        confirmFitnessGoalsUpdate,
 
         // Web search
         web_search: openai.tools.webSearch({

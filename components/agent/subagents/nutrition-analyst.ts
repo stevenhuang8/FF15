@@ -89,6 +89,7 @@ For any dish, consider:
 Remember: Nutrition should enhance enjoyment of food, not diminish it. Help users make informed choices that align with their goals while still loving what they eat.`,
 
   tools: [
+    "getUserContext", // Get user dietary goals and nutrition targets
     "retrieveKnowledgeBase",
     "web_search",
     "searchFoodNutrition",

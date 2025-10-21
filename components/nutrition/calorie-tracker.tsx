@@ -59,6 +59,52 @@ export function CalorieTracker({ className }: CalorieTrackerProps) {
     fetchData()
   }, [])
 
+  // ============================================================================
+  // Real-Time Subscription
+  // ============================================================================
+
+  useEffect(() => {
+    const supabase = createClient()
+    let subscription: any = null
+
+    const setupSubscription = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      // Subscribe to changes in calorie_tracking table for this user
+      // This table is updated when meals are logged or workouts are completed
+      subscription = supabase
+        .channel('calorie_tracking_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to INSERT, UPDATE, DELETE
+            schema: 'public',
+            table: 'calorie_tracking',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('🔄 Real-time calorie_tracking change:', payload.eventType)
+            // Refresh calorie data when any change occurs
+            fetchData()
+          }
+        )
+        .subscribe()
+    }
+
+    setupSubscription()
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
+  }, []) // Empty dependency array - set up once on mount
+
   const fetchData = async () => {
     try {
       setIsLoading(true)

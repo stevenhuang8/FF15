@@ -103,6 +103,51 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
     loadWorkoutLogs()
   }, [limit])
 
+  // ============================================================================
+  // Real-Time Subscription
+  // ============================================================================
+
+  useEffect(() => {
+    const supabase = createClient()
+    let subscription: any = null
+
+    const setupSubscription = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      // Subscribe to changes in workout_logs table for this user
+      subscription = supabase
+        .channel('workout_logs_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to INSERT, UPDATE, DELETE
+            schema: 'public',
+            table: 'workout_logs',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('🔄 Real-time workout_logs change:', payload.eventType)
+            // Refresh workout logs when any change occurs
+            loadWorkoutLogs()
+          }
+        )
+        .subscribe()
+    }
+
+    setupSubscription()
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
+  }, []) // Empty dependency array - set up once on mount
+
   const loadWorkoutLogs = async () => {
     setIsLoading(true)
     try {

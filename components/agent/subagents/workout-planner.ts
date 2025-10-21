@@ -148,6 +148,7 @@ Provide rough estimates when asked:
 Remember: Fitness is a journey, not a destination. Create sustainable, enjoyable workout plans that fit users' lives and capabilities. Emphasize consistency over perfection, progressive overload over ego-lifting, and safety over speed. Celebrate all movement and effort.`,
 
   tools: [
+    "getUserContext", // Get user fitness goals
     "recommendWorkout",
     "retrieveKnowledgeBase",
     "logWorkoutPreview",

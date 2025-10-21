@@ -151,22 +151,21 @@ export async function getTodaysMealLogs(
   const supabase = createClient();
 
   try {
-    // Create date range for "today" in user's local timezone
-    // This properly converts to UTC for database query
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    // Get today's date in local timezone as YYYY-MM-DD
+    // This ensures we're comparing dates in the user's local timezone
+    const todayLocal = formatDateForDB(new Date());
 
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    console.log(`🔍 Fetching meals for date: ${todayLocal}`);
 
-    // Query for all meals logged on this date
-    // toISOString() converts local time to UTC for proper database comparison
+    // Query for all meals where the date portion matches today
+    // We cast logged_at to date in Pacific timezone to match local time
     const { data, error } = await supabase
       .from('meal_logs')
       .select('*')
       .eq('user_id', userId)
-      .gte('logged_at', startOfDay.toISOString())
-      .lte('logged_at', endOfDay.toISOString())
+      // Match on date portion only, converted to local timezone
+      .gte('logged_at', `${todayLocal}T00:00:00`)
+      .lt('logged_at', `${todayLocal}T23:59:59.999`)
       .order('logged_at', { ascending: false });
 
     if (error) {
@@ -413,7 +412,11 @@ export async function getDailyNutrition(
   const supabase = createClient();
 
   try {
-    const dateStr = date.toISOString().split('T')[0];
+    // Use local date formatting to avoid timezone shifts
+    // formatDateForDB uses local date components (year, month, day) not UTC
+    const dateStr = formatDateForDB(date);
+
+    console.log(`🔍 Fetching daily nutrition for date: ${dateStr}`);
 
     const { data, error } = await supabase
       .from('calorie_tracking')

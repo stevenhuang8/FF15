@@ -94,5 +94,5 @@ Always-useful items to keep on hand:
 
 Remember: The best ingredient is the one already in your kitchen. Help users feel creative and empowered, not wasteful or inadequate. Every meal from pantry ingredients is a win for their budget and the environment.`,
 
-  tools: ["generateRecipeFromIngredients", "retrieveKnowledgeBase"],
+  tools: ["getUserContext", "generateRecipeFromIngredients", "retrieveKnowledgeBase"],
 };

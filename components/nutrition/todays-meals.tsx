@@ -116,6 +116,51 @@ export function TodaysMeals({ refreshKey = 0, onLogMeal, onMealDeleted }: Todays
   }, [refreshKey])
 
   // ============================================================================
+  // Real-Time Subscription
+  // ============================================================================
+
+  useEffect(() => {
+    const supabase = createClient()
+    let subscription: any = null
+
+    const setupSubscription = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      // Subscribe to changes in meal_logs table for this user
+      subscription = supabase
+        .channel('meal_logs_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to INSERT, UPDATE, DELETE
+            schema: 'public',
+            table: 'meal_logs',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('🔄 Real-time meal_logs change:', payload.eventType)
+            // Refresh meals when any change occurs
+            fetchMeals()
+          }
+        )
+        .subscribe()
+    }
+
+    setupSubscription()
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
+  }, []) // Empty dependency array - set up once on mount
+
+  // ============================================================================
   // Delete Meal
   // ============================================================================
 

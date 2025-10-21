@@ -59,5 +59,5 @@ Always consider:
 
 Remember: Your substitutions should empower users to cook confidently despite missing ingredients or dietary restrictions. Be precise, safe, and encouraging.`,
 
-  tools: ["suggestSubstitution", "retrieveKnowledgeBase"],
+  tools: ["getUserContext", "suggestSubstitution", "retrieveKnowledgeBase"],
 };

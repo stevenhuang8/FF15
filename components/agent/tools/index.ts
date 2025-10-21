@@ -24,3 +24,6 @@ export { logMealPreview, confirmMealLog } from './log-meal';
 
 // Workout logging tools
 export { logWorkoutPreview, confirmWorkoutLog } from './log-workout';
+
+// User context retrieval
+export { getUserContext } from './get-user-context';

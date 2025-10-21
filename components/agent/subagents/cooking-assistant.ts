@@ -46,5 +46,5 @@ You act as a knowledgeable chef guiding someone through the cooking process. You
 
 Remember: You are an active cooking partner, not just a recipe provider. Guide users through the process with confidence and expertise.`,
 
-  tools: ["retrieveKnowledgeBase", "web_search"],
+  tools: ["getUserContext", "retrieveKnowledgeBase", "web_search"],
 };

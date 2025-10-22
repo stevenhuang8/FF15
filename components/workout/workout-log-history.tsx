@@ -505,13 +505,11 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
                               </span>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon">
-                            {expandedLogs.has(log.id) ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </Button>
+                          {expandedLogs.has(log.id) ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
                         </div>
                       </CollapsibleTrigger>
                       <div className="flex items-center gap-1">

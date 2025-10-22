@@ -567,17 +567,24 @@ export async function getDashboardData(userId: string) {
   const supabase = createClient();
 
   try {
+    // Import workout functions
+    const { getWorkoutCountThisWeek, calculateWorkoutStreak } = await import('@/lib/supabase/workouts');
+
     // Fetch all data in parallel
     const [
       { data: latestMetrics },
       { data: activeGoals },
       { data: recentSnapshots },
       { data: weightTrend },
+      thisWeekWorkoutsCount,
+      workoutStreak,
     ] = await Promise.all([
       getLatestHealthMetrics(userId),
       getFitnessGoals(userId, 'active'),
       getProgressSnapshots(userId, undefined, undefined, 12), // Last 12 weeks
       getWeightTrend(userId, 90), // Last 90 days
+      getWorkoutCountThisWeek(userId), // Real-time workout count for this week
+      calculateWorkoutStreak(userId), // Real-time workout streak calculation
     ]);
 
     return {
@@ -586,6 +593,9 @@ export async function getDashboardData(userId: string) {
         activeGoals: activeGoals || [],
         recentSnapshots: recentSnapshots || [],
         weightTrend: weightTrend || [],
+        thisWeekWorkoutsCount, // Add real-time workout count
+        currentStreak: workoutStreak.currentStreak, // Add current workout streak
+        longestStreak: workoutStreak.longestStreak, // Add longest workout streak
       },
       error: null,
     };

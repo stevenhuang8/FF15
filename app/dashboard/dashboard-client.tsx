@@ -52,6 +52,8 @@ interface DashboardStats {
   activeGoals: number
   goalsAchieved: number
   thisWeekWorkouts: number
+  currentStreak?: number
+  longestStreak?: number
 }
 
 // ============================================================================
@@ -110,7 +112,9 @@ export default function DashboardClient() {
           weightChange: calculateWeightChange(dashboardData.weightTrend || []),
           activeGoals: dashboardData.activeGoals.filter((g) => g.status === 'active').length,
           goalsAchieved: dashboardData.activeGoals.filter((g) => g.status === 'achieved').length,
-          thisWeekWorkouts: dashboardData.recentSnapshots[0]?.total_workouts_this_week || 0,
+          thisWeekWorkouts: dashboardData.thisWeekWorkoutsCount || 0, // Use real-time count instead of snapshot
+          currentStreak: dashboardData.currentStreak || 0, // Add current workout streak
+          longestStreak: dashboardData.longestStreak || 0, // Add longest workout streak
         }
 
         setStats(newStats)
@@ -384,8 +388,10 @@ export default function DashboardClient() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground">days active</p>
+            <div className="text-2xl font-bold">{stats.currentStreak || 0}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.currentStreak === 1 ? 'day active' : 'days active'}
+            </p>
           </CardContent>
         </Card>
       </div>

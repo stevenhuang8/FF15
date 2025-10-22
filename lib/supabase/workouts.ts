@@ -288,6 +288,148 @@ export async function getWorkoutLogs(userId: string, limit = 50) {
 }
 
 /**
+ * Gets the count of workouts completed in the last 7 days (this week)
+ * Used for real-time dashboard statistics
+ */
+export async function getWorkoutCountThisWeek(userId: string): Promise<number> {
+  const supabase = createClient();
+
+  try {
+    // Calculate date 7 days ago
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+
+    const { count, error } = await supabase
+      .from('workout_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('completed_at', sevenDaysAgoISO);
+
+    if (error) {
+      console.error('Error counting workouts this week:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Exception counting workouts this week:', error);
+    return 0;
+  }
+}
+
+/**
+ * Calculates the current workout streak (consecutive days with workouts)
+ * Uses user's local timezone for date grouping
+ * Strict rules: missing one day breaks the streak
+ */
+export async function calculateWorkoutStreak(userId: string): Promise<{
+  currentStreak: number;
+  longestStreak: number;
+}> {
+  const supabase = createClient();
+
+  try {
+    // Fetch all workout logs ordered by completion date descending
+    const { data: workoutLogs, error } = await supabase
+      .from('workout_logs')
+      .select('completed_at')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching workout logs for streak:', error);
+      return { currentStreak: 0, longestStreak: 0 };
+    }
+
+    if (!workoutLogs || workoutLogs.length === 0) {
+      return { currentStreak: 0, longestStreak: 0 };
+    }
+
+    // Convert timestamps to local dates (YYYY-MM-DD format) and dedupe
+    const workoutDates = Array.from(
+      new Set(
+        workoutLogs.map((log) => {
+          const date = new Date(log.completed_at);
+          // Convert to local date string (YYYY-MM-DD)
+          return date.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
+        })
+      )
+    ).sort((a, b) => b.localeCompare(a)); // Sort descending (most recent first)
+
+    if (workoutDates.length === 0) {
+      return { currentStreak: 0, longestStreak: 0 };
+    }
+
+    // Calculate current streak
+    let currentStreak = 0;
+    const today = new Date().toLocaleDateString('en-CA');
+    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
+
+    // Start from today or most recent workout
+    let expectedDate = workoutDates[0];
+
+    // Check if streak is active (last workout today or yesterday)
+    if (expectedDate !== today && expectedDate !== yesterday) {
+      // Streak is broken - last workout was 2+ days ago
+      currentStreak = 0;
+    } else {
+      // Streak is active - count backwards
+      expectedDate = today; // Start counting from today
+
+      for (const workoutDate of workoutDates) {
+        if (workoutDate === expectedDate) {
+          currentStreak++;
+          // Move to previous day
+          const prevDate = new Date(expectedDate);
+          prevDate.setDate(prevDate.getDate() - 1);
+          expectedDate = prevDate.toLocaleDateString('en-CA');
+        } else {
+          // Check if there's a gap
+          const workoutDateTime = new Date(workoutDate).getTime();
+          const expectedDateTime = new Date(expectedDate).getTime();
+
+          if (workoutDateTime < expectedDateTime) {
+            // Gap found - streak ends
+            break;
+          }
+        }
+      }
+    }
+
+    // Calculate longest streak (scan through all dates)
+    let longestStreak = 0;
+    let tempStreak = 1;
+
+    for (let i = 0; i < workoutDates.length - 1; i++) {
+      const currentDate = new Date(workoutDates[i]);
+      const nextDate = new Date(workoutDates[i + 1]);
+
+      // Calculate difference in days
+      const diffTime = currentDate.getTime() - nextDate.getTime();
+      const diffDays = Math.round(diffTime / 86400000);
+
+      if (diffDays === 1) {
+        // Consecutive day
+        tempStreak++;
+      } else {
+        // Gap found - check if this was the longest streak
+        longestStreak = Math.max(longestStreak, tempStreak);
+        tempStreak = 1;
+      }
+    }
+
+    // Final check for longest streak
+    longestStreak = Math.max(longestStreak, tempStreak);
+
+    return { currentStreak, longestStreak };
+  } catch (error) {
+    console.error('Exception calculating workout streak:', error);
+    return { currentStreak: 0, longestStreak: 0 };
+  }
+}
+
+/**
  * Deletes a workout log
  */
 export async function deleteWorkoutLog(workoutLogId: string, userId: string) {

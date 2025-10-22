@@ -72,16 +72,28 @@ export async function POST(request: NextRequest) {
 
     console.log("🔐 Authenticated user:", user.id);
 
+    // Fetch user profile to get their name
+    const { data: userProfile } = await supabase
+      .from("user_profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+
+    const userName = userProfile?.full_name || "there";
+    console.log("👤 User name:", userName);
+
     const modelMessages = convertToModelMessages(messages);
 
     console.log("🤖 Orchestrator agent activated with", Object.keys(SUBAGENTS).length, "subagents");
 
-    // Inject user ID into system prompt for tool calls
-    const systemPromptWithUserId = ORCHESTRATOR_PROMPT.replace("{{USER_ID}}", user.id);
+    // Inject user ID and name into system prompt for tool calls and personalization
+    const systemPromptWithUserContext = ORCHESTRATOR_PROMPT
+      .replace("{{USER_ID}}", user.id)
+      .replace("{{USER_NAME}}", userName);
 
     const result = streamText({
       model: openai("gpt-5"),
-      system: systemPromptWithUserId,
+      system: systemPromptWithUserContext,
       messages: modelMessages,
 
       // Enable multi-step reasoning for complex orchestration

@@ -10,6 +10,9 @@ import {
   // Workout logging tools
   logWorkoutPreview,
   confirmWorkoutLog,
+  // Pantry management tools
+  addPantryItemPreview,
+  confirmAddPantryItem,
   // Profile management tools
   updateDietaryPreferences,
   confirmDietaryPreferencesUpdate,
@@ -114,6 +117,10 @@ export async function POST(request: NextRequest) {
         // Workout logging (two-step preview/confirm pattern)
         logWorkoutPreview,
         confirmWorkoutLog,
+
+        // Pantry management (two-step preview/confirm pattern)
+        addPantryItemPreview,
+        confirmAddPantryItem,
 
         // Profile management (two-step preview/confirm pattern)
         updateDietaryPreferences,

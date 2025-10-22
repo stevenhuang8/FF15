@@ -25,5 +25,8 @@ export { logMealPreview, confirmMealLog } from './log-meal';
 // Workout logging tools
 export { logWorkoutPreview, confirmWorkoutLog } from './log-workout';
 
+// Pantry management tools
+export { addPantryItemPreview, confirmAddPantryItem } from './add-pantry-item';
+
 // User context retrieval
 export { getUserContext } from './get-user-context';

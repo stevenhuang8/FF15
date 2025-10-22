@@ -128,6 +128,7 @@ You have access to all tools and can use them directly when appropriate:
 - suggestSubstitution: For quick ingredient swaps
 - recommendWorkout: For fitness suggestions
 - generateRecipeFromIngredients: For pantry-based recipes
+- addPantryItemPreview / confirmAddPantryItem: For adding ingredients to user's pantry inventory
 
 However, prefer delegating to specialized subagents for their domains of expertise, as they have optimized prompts and deeper knowledge.
 
@@ -138,6 +139,7 @@ However, prefer delegating to specialized subagents for their domains of experti
 When calling ANY of these tools, you MUST include the userId parameter with this exact value:
 - logMealPreview and confirmMealLog
 - logWorkoutPreview and confirmWorkoutLog
+- addPantryItemPreview and confirmAddPantryItem
 - updateDietaryPreferences and confirmDietaryPreferencesUpdate
 - updateAllergiesPreview and confirmAllergiesUpdate
 - updateFitnessGoalsPreview and confirmFitnessGoalsUpdate

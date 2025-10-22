@@ -65,39 +65,22 @@ export default function Home() {
 
           {/* Agent Cards */}
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-12"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-12"
             variants={container}
           >
             <motion.div variants={item}>
               <Link
                 href="/simple-agent"
-                className="group block glass-strong rounded-xl p-6 hover:scale-105 transition-smooth glow-hover h-full"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-smooth">
-                    <MessageSquare className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-semibold">Simple Agent</h3>
-                </div>
-                <p className="text-muted-foreground text-sm">
-                  Quick conversations with our AI for instant cooking and fitness advice
-                </p>
-              </Link>
-            </motion.div>
-
-            <motion.div variants={item}>
-              <Link
-                href="/rag-agent"
                 className="group block glass-strong rounded-xl p-6 hover:scale-105 transition-smooth glow-hover h-full border-2 border-primary/50"
               >
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-3 bg-primary/20 rounded-lg group-hover:bg-primary/30 transition-smooth">
-                    <Database className="h-6 w-6 text-primary" />
+                    <Brain className="h-6 w-6 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">RAG Agent</h3>
+                  <h3 className="text-xl font-semibold">FF Coach</h3>
                 </div>
                 <p className="text-muted-foreground text-sm">
-                  Advanced AI powered by our extensive cooking and fitness knowledge base
+                  Your complete AI assistant for cooking, nutrition, meal planning, and fitness guidance with personalized recommendations
                 </p>
                 <div className="mt-3 px-3 py-1 bg-primary/10 rounded-full text-xs text-primary inline-block">
                   Recommended
@@ -114,10 +97,10 @@ export default function Home() {
                   <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-smooth">
                     <Wrench className="h-6 w-6 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">MCP Tools Agent</h3>
+                  <h3 className="text-xl font-semibold">Web Research Agent</h3>
                 </div>
                 <p className="text-muted-foreground text-sm">
-                  Full-featured assistant with extended capabilities and integrations
+                  Specialized agent for deep recipe research and web scraping using Firecrawl integration
                 </p>
               </Link>
             </motion.div>

@@ -37,7 +37,6 @@ export default function ChatHistoryPage() {
       <main className="flex-1 bg-background relative flex justify-center  ">
         <div className="w-full max-w-4xl">
           <ChatAssistant
-            api="/api/rag-agent"
             conversationId={selectedConversationId}
             onConversationCreated={handleConversationCreated}
           />

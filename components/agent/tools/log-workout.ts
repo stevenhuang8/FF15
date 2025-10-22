@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/server';
  * Supports smart defaults for missing information
  */
 const logWorkoutSchema = z.object({
+  userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
   title: z
     .string()
     .describe('Title/name of the workout (e.g., "Morning Run", "Leg Day", "Yoga Session")'),
@@ -49,26 +50,21 @@ export const logWorkoutPreview = tool({
     'Log a completed workout session. Can handle detailed or vague inputs (e.g., "I ran" uses smart defaults). IMPORTANT: This tool returns a PREVIEW. Ask user to CONFIRM before confirmWorkoutLog.',
   inputSchema: logWorkoutSchema,
   execute: async ({
+    userId,
     title,
     exercises,
     totalDurationMinutes,
     overallIntensity,
     notes,
   }: z.infer<typeof logWorkoutSchema>) => {
-    console.log(`💪 Preparing workout log: ${title} with ${exercises.length} exercises`);
+    console.log(`💪 Preparing workout log for user ${userId}: ${title} with ${exercises.length} exercises`);
 
     try {
-      // Get current user
-      const supabase = await createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      // userId is provided by the system (from authenticated request)
+      if (!userId) {
         return {
           success: false,
-          error: 'User not authenticated. Please sign in to log workouts.',
+          error: 'User ID is required but was not provided.',
         };
       }
 
@@ -125,7 +121,7 @@ export const logWorkoutPreview = tool({
         },
         exerciseSummary,
         message: `Ready to log workout: "${title}"\n\nExercises:\n${exerciseSummary.map(s => `- ${s}`).join('\n')}\n\nDuration: ${calculatedDuration} min\nIntensity: ${intensity}\nEstimated calories burned: ~${estimatedCalories} cal\n\nPlease ask the user to CONFIRM before saving.`,
-        userId: user.id,
+        userId: userId,
         assumptions: {
           ...(totalDurationMinutes ? {} : { duration: `Assumed ${calculatedDuration} minutes (not specified)` }),
           ...(overallIntensity ? {} : { intensity: 'Assumed medium intensity (not specified)' }),
@@ -145,6 +141,7 @@ export const logWorkoutPreview = tool({
  * Confirmation tool - actually saves the workout after user confirms
  */
 const confirmWorkoutLogSchema = z.object({
+  userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
   title: z.string(),
   exercises: z.array(z.any()).describe('Exercises performed (from preview)'),
   totalDurationMinutes: z.number(),
@@ -158,6 +155,7 @@ export const confirmWorkoutLog = tool({
     'Confirm and save workout log after user approves the preview. Only call this after logWorkoutPreview and user confirmation.',
   inputSchema: confirmWorkoutLogSchema,
   execute: async ({
+    userId,
     title,
     exercises,
     totalDurationMinutes,
@@ -165,17 +163,11 @@ export const confirmWorkoutLog = tool({
     estimatedCalories,
     notes,
   }: z.infer<typeof confirmWorkoutLogSchema>) => {
-    console.log(`✅ Confirming workout log: ${title}`);
+    console.log(`✅ Confirming workout log for user ${userId}: ${title}`);
 
     try {
-      // Get current user
-      const supabase = await createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      // userId is provided by the system (from authenticated request)
+      if (!userId) {
         return {
           success: false,
           error: 'User not authenticated.',
@@ -183,8 +175,9 @@ export const confirmWorkoutLog = tool({
       }
 
       // Save workout log
-      const { data: workoutLog, error } = await logWorkout({
-        userId: user.id,
+      const supabase = await createClient();
+      const { data: workoutLog, error } = await logWorkout(supabase, {
+        userId: userId,
         title,
         exercisesPerformed: exercises,
         totalDurationMinutes,

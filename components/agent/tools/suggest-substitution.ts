@@ -8,6 +8,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { getSubstitutionsForIngredient, getUserDietaryPreferences } from '@/lib/supabase/substitutions'
+import { createClient } from '@/lib/supabase/server'
 
 export const suggestSubstitution = tool({
   description: `Suggest ingredient substitutions based on dietary restrictions, allergies, and recipe context.
@@ -47,7 +48,8 @@ export const suggestSubstitution = tool({
 
       // Get user's dietary preferences if userId provided
       if (userId) {
-        const { data: dietaryPrefs } = await getUserDietaryPreferences(userId)
+        const supabase = await createClient()
+        const { data: dietaryPrefs } = await getUserDietaryPreferences(supabase, userId)
         if (dietaryPrefs) {
           userRestrictions = dietaryPrefs.dietary_restrictions || []
           userAllergies = dietaryPrefs.allergies || []

@@ -4,7 +4,7 @@
  * Database functions for managing ingredient substitutions and user preferences
  */
 
-import { createClient } from '@/lib/supabase/client'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TablesInsert, TablesUpdate, Tables } from '@/types/supabase'
 
 // ============================================================================
@@ -294,13 +294,12 @@ export async function deleteUserSubstitutionPreference(
  * Update user's dietary restrictions
  */
 export async function updateDietaryRestrictions(
+  supabase: SupabaseClient,
   userId: string,
   dietaryRestrictions: string[]
 ) {
-  const supabase = createClient()
-
   try {
-    const { data, error } = await supabase
+    const { data, error} = await supabase
       .from('user_profiles')
       .update({ dietary_restrictions: dietaryRestrictions })
       .eq('id', userId)
@@ -327,9 +326,11 @@ export async function updateDietaryRestrictions(
 /**
  * Update user's allergies
  */
-export async function updateAllergies(userId: string, allergies: string[]) {
-  const supabase = createClient()
-
+export async function updateAllergies(
+  supabase: SupabaseClient,
+  userId: string,
+  allergies: string[]
+) {
   try {
     const { data, error } = await supabase
       .from('user_profiles')
@@ -357,9 +358,10 @@ export async function updateAllergies(userId: string, allergies: string[]) {
 /**
  * Get user's dietary preferences (restrictions + allergies)
  */
-export async function getUserDietaryPreferences(userId: string) {
-  const supabase = createClient()
-
+export async function getUserDietaryPreferences(
+  supabase: SupabaseClient,
+  userId: string
+) {
   try {
     const { data, error } = await supabase
       .from('user_profiles')

@@ -12,7 +12,6 @@ import {
 import { createClient } from '@/lib/supabase/server';
 
 const updateAllergiesSchema = z.object({
-  userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
   operation: z
     .enum(['add', 'remove', 'replace'])
     .describe(
@@ -33,22 +32,27 @@ export const updateAllergiesPreview = tool({
   description:
     'Update user food allergies (peanuts, shellfish, dairy, etc.). IMPORTANT: This tool returns a PREVIEW of changes. Ask user to CONFIRM before calling confirmAllergiesUpdate.',
   inputSchema: updateAllergiesSchema,
-  execute: async ({ userId, operation, allergies }: z.infer<typeof updateAllergiesSchema>) => {
-    console.log(`🔔 Updating allergies for user ${userId}: ${operation} [${allergies.join(', ')}]`);
+  execute: async ({ operation, allergies }: z.infer<typeof updateAllergiesSchema>) => {
+    console.log(`🚨 Updating allergies: ${operation} [${allergies.join(', ')}]`);
 
     try {
-      // userId is provided by the system (from authenticated request)
-      if (!userId) {
+      // Get current user
+      const supabase = await createClient();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
         return {
           success: false,
-          error: 'User ID is required but was not provided.',
+          error: 'User not authenticated. Please sign in to update allergies.',
         };
       }
 
       // Get current allergies
-      const supabase = await createClient();
       const { data: currentPrefs, error: fetchError } =
-        await getUserDietaryPreferences(supabase, userId);
+        await getUserDietaryPreferences(user.id);
 
       if (fetchError) {
         return {
@@ -114,7 +118,7 @@ export const updateAllergiesPreview = tool({
           ),
         },
         message: `Ready to update allergies. Current: [${currentAllergies.join(', ') || 'none'}]. New: [${newAllergies.join(', ') || 'none'}]. Please ask the user to CONFIRM this change before saving.`,
-        userId: userId,
+        userId: user.id,
       };
     } catch (error) {
       console.error('❌ Error in updateAllergiesPreview tool:', error);
@@ -130,7 +134,6 @@ export const updateAllergiesPreview = tool({
  * Confirmation tool - actually saves the allergies after user confirms
  */
 const confirmAllergiesUpdateSchema = z.object({
-  userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
   allergies: z
     .array(z.string())
     .describe('The new allergies to save (from preview)'),
@@ -140,21 +143,26 @@ export const confirmAllergiesUpdate = tool({
   description:
     'Confirm and save allergies update after user approves the preview. Only call this after updateAllergiesPreview and user confirmation.',
   inputSchema: confirmAllergiesUpdateSchema,
-  execute: async ({ userId, allergies }: z.infer<typeof confirmAllergiesUpdateSchema>) => {
-    console.log(`✅ Confirming allergies update for user ${userId}: [${allergies.join(', ')}]`);
+  execute: async ({ allergies }: z.infer<typeof confirmAllergiesUpdateSchema>) => {
+    console.log(`✅ Confirming allergies update: [${allergies.join(', ')}]`);
 
     try {
-      // userId is provided by the system (from authenticated request)
-      if (!userId) {
+      // Get current user
+      const supabase = await createClient();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
         return {
           success: false,
-          error: 'User ID is required but was not provided.',
+          error: 'User not authenticated.',
         };
       }
 
       // Save to database
-      const supabase = await createClient();
-      const { data, error } = await updateAllergies(supabase, userId, allergies);
+      const { data, error } = await updateAllergies(user.id, allergies);
 
       if (error) {
         return {

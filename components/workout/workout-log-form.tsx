@@ -370,7 +370,7 @@ export function WorkoutLogForm({
         throw new Error('User not authenticated')
       }
 
-      const { error } = await logWorkout({
+      const { error } = await logWorkout(supabase, {
         userId: user.id,
         workoutPlanId: data.workoutPlanId,
         title: data.title,

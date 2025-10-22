@@ -4,7 +4,7 @@
  * Database operations for logging meals and tracking daily nutrition
  */
 
-import { createClient } from '@/lib/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   MealLog,
   CreateMealLogInput,
@@ -23,10 +23,9 @@ import { formatDateForDB } from '@/lib/utils';
  * Create a new meal log entry
  */
 export async function createMealLog(
+  supabase: SupabaseClient,
   input: CreateMealLogInput
 ): Promise<NutritionServiceResponse<MealLog>> {
-  const supabase = createClient();
-
   try {
     // Calculate totals from food items
     const totals = calculateTotalNutrition(input.foodItems);

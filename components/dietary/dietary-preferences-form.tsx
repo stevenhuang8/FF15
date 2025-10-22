@@ -152,8 +152,8 @@ export function DietaryPreferencesForm({ onSuccess }: DietaryPreferencesFormProp
     try {
       // Update both in parallel
       const [restrictionsResult, allergiesResult] = await Promise.all([
-        updateDietaryRestrictions(userId, dietaryRestrictions),
-        updateAllergies(userId, allergies),
+        updateDietaryRestrictions(supabase, userId, dietaryRestrictions),
+        updateAllergies(supabase, userId, allergies),
       ])
 
       if (restrictionsResult.error || allergiesResult.error) {

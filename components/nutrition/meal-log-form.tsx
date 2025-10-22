@@ -303,7 +303,7 @@ export function MealLogForm({
         throw new Error('User not authenticated')
       }
 
-      const { error } = await createMealLog({
+      const { error } = await createMealLog(supabase, {
         userId: user.id,
         mealType: data.mealType,
         foodItems: data.foodItems,

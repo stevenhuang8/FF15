@@ -12,6 +12,7 @@ import {
 import { createClient } from '@/lib/supabase/server';
 
 const updateDietaryPreferencesSchema = z.object({
+  userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
   operation: z
     .enum(['add', 'remove', 'replace'])
     .describe(
@@ -32,27 +33,22 @@ export const updateDietaryPreferences = tool({
   description:
     'Update user dietary restrictions (vegetarian, vegan, gluten-free, etc.). IMPORTANT: This tool returns a PREVIEW of changes. Ask user to CONFIRM before calling confirmDietaryPreferencesUpdate.',
   inputSchema: updateDietaryPreferencesSchema,
-  execute: async ({ operation, restrictions }: z.infer<typeof updateDietaryPreferencesSchema>) => {
-    console.log(`🥗 Updating dietary preferences: ${operation} [${restrictions.join(', ')}]`);
+  execute: async ({ userId, operation, restrictions }: z.infer<typeof updateDietaryPreferencesSchema>) => {
+    console.log(`🥗 Updating dietary preferences for user ${userId}: ${operation} [${restrictions.join(', ')}]`);
 
     try {
-      // Get current user
-      const supabase = await createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      // userId is provided by the system (from authenticated request)
+      if (!userId) {
         return {
           success: false,
-          error: 'User not authenticated. Please sign in to update dietary preferences.',
+          error: 'User ID is required but was not provided.',
         };
       }
 
       // Get current dietary restrictions
+      const supabase = await createClient();
       const { data: currentPrefs, error: fetchError} =
-        await getUserDietaryPreferences(user.id);
+        await getUserDietaryPreferences(supabase, userId);
 
       if (fetchError) {
         return {
@@ -118,7 +114,7 @@ export const updateDietaryPreferences = tool({
           ),
         },
         message: `Ready to update dietary restrictions. Current: [${currentRestrictions.join(', ') || 'none'}]. New: [${newRestrictions.join(', ') || 'none'}]. Please ask the user to CONFIRM this change.`,
-        userId: user.id,
+        userId: userId,
       };
     } catch (error) {
       console.error('❌ Error in updateDietaryPreferences tool:', error);
@@ -134,6 +130,7 @@ export const updateDietaryPreferences = tool({
  * Confirmation tool - actually saves the dietary preferences after user confirms
  */
 const confirmDietaryPreferencesUpdateSchema = z.object({
+  userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
   restrictions: z
     .array(z.string())
     .describe('The new dietary restrictions to save (from preview)'),
@@ -143,27 +140,23 @@ export const confirmDietaryPreferencesUpdate = tool({
   description:
     'Confirm and save dietary preferences update after user approves the preview. Only call this after updateDietaryPreferences and user confirmation.',
   inputSchema: confirmDietaryPreferencesUpdateSchema,
-  execute: async ({ restrictions }: z.infer<typeof confirmDietaryPreferencesUpdateSchema>) => {
-    console.log(`✅ Confirming dietary preferences update: [${restrictions.join(', ')}]`);
+  execute: async ({ userId, restrictions }: z.infer<typeof confirmDietaryPreferencesUpdateSchema>) => {
+    console.log(`✅ Confirming dietary preferences update for user ${userId}: [${restrictions.join(', ')}]`);
 
     try {
-      // Get current user
-      const supabase = await createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      // userId is provided by the system (from authenticated request)
+      if (!userId) {
         return {
           success: false,
-          error: 'User not authenticated.',
+          error: 'User ID is required but was not provided.',
         };
       }
 
       // Save to database
+      const supabase = await createClient();
       const { data, error } = await updateDietaryRestrictions(
-        user.id,
+        supabase,
+        userId,
         restrictions
       );
 

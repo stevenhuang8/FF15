@@ -15,6 +15,7 @@ export const updateFitnessGoalsPreview = tool({
   description:
     'Update user fitness goals and daily nutrition targets (calories, protein, carbs, fats). IMPORTANT: This tool returns a PREVIEW of changes. Ask user to CONFIRM before calling confirmFitnessGoalsUpdate.',
   inputSchema: z.object({
+    userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
     fitnessGoals: z
       .array(z.string())
       .optional()
@@ -39,35 +40,31 @@ export const updateFitnessGoalsPreview = tool({
       .describe('Daily fats target in grams (e.g., 65). Omit to keep current.'),
   }),
   execute: async ({
+    userId,
     fitnessGoals,
     dailyCalorieTarget,
     dailyProteinTarget,
     dailyCarbsTarget,
     dailyFatsTarget,
   }) => {
-    console.log(`🎯 Updating fitness goals and targets`);
+    console.log(`🎯 Updating fitness goals and targets for user ${userId}`);
 
     try {
-      // Get current user
-      const supabase = await createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      // userId is provided by the system (from authenticated request)
+      if (!userId) {
         return {
           success: false,
-          error: 'User not authenticated. Please sign in to update fitness goals.',
+          error: 'User ID is required but was not provided.',
         };
       }
 
-      // Get current profile
+      // Get current profile (returns null if doesn't exist)
+      const supabase = await createClient();
       const { data: profile, error: fetchError } = await supabase
         .from('user_profiles')
         .select('fitness_goals, daily_calorie_target, daily_protein_target, daily_carbs_target, daily_fats_target')
-        .eq('id', user.id)
-        .single();
+        .eq('id', userId)
+        .maybeSingle();
 
       if (fetchError) {
         return {
@@ -76,7 +73,7 @@ export const updateFitnessGoalsPreview = tool({
         };
       }
 
-      // Prepare current and new values
+      // Prepare current and new values (profile may be null if not created yet)
       const current = {
         fitnessGoals: profile?.fitness_goals || [],
         dailyCalorieTarget: profile?.daily_calorie_target || null,
@@ -125,7 +122,7 @@ export const updateFitnessGoalsPreview = tool({
         message: changes.length > 0
           ? `Ready to update fitness goals and targets:\n${changes.join('\n')}\n\nPlease ask the user to CONFIRM this change.`
           : 'No changes detected.',
-        userId: user.id,
+        userId: userId,
       };
     } catch (error) {
       console.error('❌ Error in updateFitnessGoalsPreview tool:', error);
@@ -144,6 +141,7 @@ export const confirmFitnessGoalsUpdate = tool({
   description:
     'Confirm and save fitness goals update after user approves the preview. Only call this after updateFitnessGoalsPreview and user confirmation.',
   inputSchema: z.object({
+    userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
     fitnessGoals: z.array(z.string()).optional(),
     dailyCalorieTarget: z.number().nullable().optional(),
     dailyProteinTarget: z.number().nullable().optional(),
@@ -151,42 +149,38 @@ export const confirmFitnessGoalsUpdate = tool({
     dailyFatsTarget: z.number().nullable().optional(),
   }),
   execute: async ({
+    userId,
     fitnessGoals,
     dailyCalorieTarget,
     dailyProteinTarget,
     dailyCarbsTarget,
     dailyFatsTarget,
   }) => {
-    console.log(`✅ Confirming fitness goals update`);
+    console.log(`✅ Confirming fitness goals update for user ${userId}`);
 
     try {
-      // Get current user
-      const supabase = await createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      // userId is provided by the system (from authenticated request)
+      if (!userId) {
         return {
           success: false,
-          error: 'User not authenticated.',
+          error: 'User ID is required but was not provided.',
         };
       }
 
       // Build update object with only provided values
-      const updates: any = {};
+      const updates: any = { id: userId };
       if (fitnessGoals !== undefined) updates.fitness_goals = fitnessGoals;
       if (dailyCalorieTarget !== undefined) updates.daily_calorie_target = dailyCalorieTarget;
       if (dailyProteinTarget !== undefined) updates.daily_protein_target = dailyProteinTarget;
       if (dailyCarbsTarget !== undefined) updates.daily_carbs_target = dailyCarbsTarget;
       if (dailyFatsTarget !== undefined) updates.daily_fats_target = dailyFatsTarget;
 
-      // Save to database
+      // Save to database (upsert creates profile if it doesn't exist)
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('user_profiles')
-        .update(updates)
-        .eq('id', user.id)
+        .upsert(updates)
+        .eq('id', userId)
         .select()
         .single();
 

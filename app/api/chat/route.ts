@@ -24,6 +24,7 @@ import { SUBAGENTS } from "@/components/agent/subagents";
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * Main Chat API Route with Multi-Agent Architecture Pattern
@@ -55,13 +56,29 @@ export async function POST(request: NextRequest) {
       return new Response("Messages array is required", { status: 400 });
     }
 
+    // Get authenticated user for tool operations
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return new Response("Unauthorized - Please sign in to use the assistant", { status: 401 });
+    }
+
+    console.log("🔐 Authenticated user:", user.id);
+
     const modelMessages = convertToModelMessages(messages);
 
     console.log("🤖 Orchestrator agent activated with", Object.keys(SUBAGENTS).length, "subagents");
 
+    // Inject user ID into system prompt for tool calls
+    const systemPromptWithUserId = ORCHESTRATOR_PROMPT.replace("{{USER_ID}}", user.id);
+
     const result = streamText({
       model: openai("gpt-5"),
-      system: ORCHESTRATOR_PROMPT,
+      system: systemPromptWithUserId,
       messages: modelMessages,
 
       // Enable multi-step reasoning for complex orchestration

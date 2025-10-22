@@ -16,6 +16,7 @@ import type { FoodItem, MealType } from '@/lib/nutrition/types';
  * Returns a preview of the meal to be logged
  */
 const logMealSchema = z.object({
+  userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
   mealType: z
     .enum(['breakfast', 'lunch', 'dinner', 'snack'])
     .describe('Type of meal'),
@@ -35,21 +36,15 @@ export const logMealPreview = tool({
   description:
     'Log a meal with automatic nutrition data lookup. Searches USDA database or uses AI estimates for nutrition info. IMPORTANT: This tool returns a PREVIEW. Ask user to CONFIRM before calling confirmMealLog.',
   inputSchema: logMealSchema,
-  execute: async ({ mealType, foodItems, notes }: z.infer<typeof logMealSchema>) => {
-    console.log(`🍽️ Preparing meal log: ${mealType} with ${foodItems.length} items`);
+  execute: async ({ userId, mealType, foodItems, notes }: z.infer<typeof logMealSchema>) => {
+    console.log(`🍽️ Preparing meal log for user ${userId}: ${mealType} with ${foodItems.length} items`);
 
     try {
-      // Get current user
-      const supabase = await createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      // userId is provided by the system (from authenticated request)
+      if (!userId) {
         return {
           success: false,
-          error: 'User not authenticated. Please sign in to log meals.',
+          error: 'User ID is required but was not provided.',
         };
       }
 
@@ -142,7 +137,7 @@ export const logMealPreview = tool({
         },
         nutritionLookupDetails,
         message: `Ready to log ${mealType}:\n${nutritionLookupDetails.join('\n')}\n\nTotals: ${Math.round(totalCalories)} cal, ${Math.round(totalProtein)}g protein, ${Math.round(totalCarbs)}g carbs, ${Math.round(totalFats)}g fats\n\nPlease ask the user to CONFIRM before saving.`,
-        userId: user.id,
+        userId: userId,
       };
     } catch (error) {
       console.error('❌ Error in logMealPreview tool:', error);
@@ -158,6 +153,7 @@ export const logMealPreview = tool({
  * Confirmation tool - actually saves the meal after user confirms
  */
 const confirmMealLogSchema = z.object({
+  userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
   mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
   foodItems: z.array(
     z.object({
@@ -177,27 +173,22 @@ export const confirmMealLog = tool({
   description:
     'Confirm and save meal log after user approves the preview. Only call this after logMealPreview and user confirmation.',
   inputSchema: confirmMealLogSchema,
-  execute: async ({ mealType, foodItems, notes }: z.infer<typeof confirmMealLogSchema>) => {
-    console.log(`✅ Confirming meal log: ${mealType}`);
+  execute: async ({ userId, mealType, foodItems, notes }: z.infer<typeof confirmMealLogSchema>) => {
+    console.log(`✅ Confirming meal log for user ${userId}: ${mealType}`);
 
     try {
-      // Get current user
-      const supabase = await createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      // userId is provided by the system (from authenticated request)
+      if (!userId) {
         return {
           success: false,
-          error: 'User not authenticated.',
+          error: 'User ID is required but was not provided.',
         };
       }
 
       // Save meal log
-      const { data: mealLog, error } = await createMealLog({
-        userId: user.id,
+      const supabase = await createClient();
+      const { data: mealLog, error } = await createMealLog(supabase, {
+        userId: userId,
         mealType: mealType as MealType,
         foodItems: foodItems as FoodItem[],
         notes,

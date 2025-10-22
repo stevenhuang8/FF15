@@ -4,7 +4,7 @@
  * Database functions for saving and managing workout plans
  */
 
-import { createClient } from '@/lib/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ExtractedWorkout } from '@/types/workout';
 import type { TablesInsert } from '@/types/supabase';
 
@@ -212,18 +212,19 @@ export async function searchWorkouts(userId: string, query: string) {
 /**
  * Logs a completed workout session
  */
-export async function logWorkout(params: {
-  userId: string;
-  workoutPlanId?: string;
-  title: string;
-  exercisesPerformed: any[]; // JSON type from DB
-  totalDurationMinutes: number;
-  caloriesBurned?: number;
-  intensity: 'low' | 'medium' | 'high';
-  notes?: string;
-}) {
-  const supabase = createClient();
-
+export async function logWorkout(
+  supabase: SupabaseClient,
+  params: {
+    userId: string;
+    workoutPlanId?: string;
+    title: string;
+    exercisesPerformed: any[]; // JSON type from DB
+    totalDurationMinutes: number;
+    caloriesBurned?: number;
+    intensity: 'low' | 'medium' | 'high';
+    notes?: string;
+  }
+) {
   try {
     const { data, error } = await supabase
       .from('workout_logs')

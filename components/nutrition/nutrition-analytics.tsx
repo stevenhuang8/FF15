@@ -45,6 +45,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { parseLocalDate } from '@/lib/utils'
 
 // ============================================================================
 // Types
@@ -207,7 +208,9 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
 
     return analyticsData.data.map((day) => ({
       ...day,
-      date: format(new Date(day.date), 'MMM dd'),
+      // Use parseLocalDate to interpret date strings as local dates, not UTC
+      // This prevents timezone shift issues (e.g., Oct 22 showing as Oct 21)
+      date: format(parseLocalDate(day.date), 'MMM dd'),
       calorieTarget: analyticsData.targets.calories,
     }))
   }

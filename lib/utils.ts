@@ -84,6 +84,32 @@ export function formatDateForDB(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+/**
+ * Parse a YYYY-MM-DD date string as a local date (not UTC)
+ *
+ * IMPORTANT: Using `new Date("2025-10-22")` interprets the date as UTC midnight,
+ * which can cause timezone shift issues. This function parses the date string
+ * as midnight in the user's LOCAL timezone instead.
+ *
+ * @param dateString - Date string in YYYY-MM-DD format (e.g., "2025-10-22")
+ * @returns Date object representing midnight in local timezone
+ *
+ * @example
+ * // Without this function (WRONG - UTC interpretation):
+ * new Date("2025-10-22") // Oct 22 00:00:00 UTC -> Oct 21 17:00:00 PDT
+ *
+ * // With this function (CORRECT - local interpretation):
+ * parseLocalDate("2025-10-22") // Oct 22 00:00:00 PDT
+ */
+export function parseLocalDate(dateString: string): Date {
+  // Parse YYYY-MM-DD format manually to create local date
+  const [year, month, day] = dateString.split('-').map(Number)
+
+  // Create date at midnight in local timezone
+  // Note: month is 0-indexed in Date constructor
+  return new Date(year, month - 1, day, 0, 0, 0, 0)
+}
+
 // Legacy aliases for backward compatibility
 export const formatPacificDate = formatLocalDate
 export const formatPacificTime = formatLocalTime

@@ -4,6 +4,7 @@
  * Database functions for managing ingredient substitutions and user preferences
  */
 
+import { createClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TablesInsert, TablesUpdate, Tables } from '@/types/supabase'
 
@@ -410,7 +411,7 @@ export async function getSuggestedSubstitutions(
     if (userPref) {
       // Move user's preferred substitution to the top
       const userSubIndex = suggestions.findIndex(
-        (s) => s.substitute_ingredient.toLowerCase() === userPref.preferred_substitute.toLowerCase()
+        (s: any) => s.substitute_ingredient.toLowerCase() === userPref.preferred_substitute.toLowerCase()
       )
 
       if (userSubIndex > -1) {

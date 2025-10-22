@@ -4,6 +4,7 @@
  * Database functions for saving and managing workout plans
  */
 
+import { createClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ExtractedWorkout } from '@/types/workout';
 import type { TablesInsert } from '@/types/supabase';

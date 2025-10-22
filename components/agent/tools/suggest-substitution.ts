@@ -60,7 +60,7 @@ export const suggestSubstitution = tool({
       const substitutions = dbSubstitutions || []
 
       // Filter out substitutions that contain user's allergens
-      const safeSubstitutions = substitutions.filter((sub) => {
+      const safeSubstitutions = substitutions.filter((sub: any) => {
         const subIngredient = sub.substitute_ingredient.toLowerCase()
         return !userAllergies.some((allergen) =>
           subIngredient.includes(allergen.toLowerCase())
@@ -72,7 +72,7 @@ export const suggestSubstitution = tool({
         context: recipeContext,
         userDietaryRestrictions: userRestrictions,
         userAllergies: userAllergies,
-        substitutions: safeSubstitutions.map((sub) => ({
+        substitutions: safeSubstitutions.map((sub: any) => ({
           substitute: sub.substitute_ingredient,
           ratio: sub.ratio || '1:1',
           reason: sub.reason || 'Common substitution',

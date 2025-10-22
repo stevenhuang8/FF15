@@ -4,6 +4,7 @@
  * Database operations for logging meals and tracking daily nutrition
  */
 
+import { createClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   MealLog,
@@ -343,7 +344,7 @@ export async function updateDailyCalorieTracking(
 
     // Calculate totals consumed
     const totalsConsumed = (meals || []).reduce(
-      (acc, meal) => ({
+      (acc: { calories: number; protein: number; carbs: number; fats: number }, meal: any) => ({
         calories: acc.calories + (meal.total_calories || 0),
         protein: acc.protein + (meal.total_protein || 0),
         carbs: acc.carbs + (meal.total_carbs || 0),
@@ -366,7 +367,7 @@ export async function updateDailyCalorieTracking(
     }
 
     const totalCaloriesBurned = (workouts || []).reduce(
-      (acc, workout) => acc + (workout.calories_burned || 0),
+      (acc: number, workout: any) => acc + (workout.calories_burned || 0),
       0
     );
 
@@ -491,7 +492,7 @@ export async function getNutritionHistory(
       return { data: null, error };
     }
 
-    const history = (data || []).map(row => ({
+    const history = (data || []).map((row: any) => ({
       userId: row.user_id,
       date: row.date,
       totalCaloriesConsumed: row.total_calories_consumed || 0,

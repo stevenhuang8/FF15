@@ -150,6 +150,8 @@ export function DietaryPreferencesForm({ onSuccess }: DietaryPreferencesFormProp
     setSaveSuccess(false)
 
     try {
+      const supabase = createClient()
+
       // Update both in parallel
       const [restrictionsResult, allergiesResult] = await Promise.all([
         updateDietaryRestrictions(supabase, userId, dietaryRestrictions),

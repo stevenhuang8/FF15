@@ -4,6 +4,9 @@
  * Functions to detect if an AI message contains a recipe
  */
 
+// Track logged message IDs to prevent spam during re-renders
+const loggedMessageIds = new Set<string>();
+
 /**
  * Detects if message content contains a recipe
  *
@@ -103,13 +106,17 @@ export function getMessageTextContent(message: any): string {
 
   const result = textFromParts || legacyContent;
 
-  console.log('📄 getMessageTextContent:', {
-    messageId: message.id,
-    partsCount: message.parts?.length || 0,
-    textPartsCount: textParts.length,
-    textLength: result.length,
-    preview: result.substring(0, 150)
-  });
+  // Only log in development and only once per unique message
+  if (process.env.NODE_ENV === 'development' && !loggedMessageIds.has(message.id)) {
+    console.log('📄 getMessageTextContent:', {
+      messageId: message.id,
+      partsCount: message.parts?.length || 0,
+      textPartsCount: textParts.length,
+      textLength: result.length,
+      preview: result.substring(0, 150)
+    });
+    loggedMessageIds.add(message.id);
+  }
 
   return result;
 }

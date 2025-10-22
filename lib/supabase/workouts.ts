@@ -288,6 +288,77 @@ export async function getWorkoutLogs(userId: string, limit = 50) {
 }
 
 /**
+ * Deletes a workout log
+ */
+export async function deleteWorkoutLog(workoutLogId: string, userId: string) {
+  const supabase = createClient();
+
+  try {
+    const { error } = await supabase
+      .from('workout_logs')
+      .delete()
+      .eq('id', workoutLogId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting workout log:', error);
+      return { error };
+    }
+
+    console.log('✅ Workout log deleted successfully:', workoutLogId);
+    return { error: null };
+  } catch (error) {
+    console.error('Exception deleting workout log:', error);
+    return {
+      error: error instanceof Error ? error : new Error('Unknown error deleting workout log'),
+    };
+  }
+}
+
+/**
+ * Updates a workout log
+ */
+export async function updateWorkoutLog(
+  workoutLogId: string,
+  userId: string,
+  updates: {
+    title?: string;
+    exercises_performed?: any[];
+    total_duration_minutes?: number;
+    calories_burned?: number | null;
+    intensity?: 'low' | 'medium' | 'high';
+    notes?: string | null;
+    completed_at?: string;
+  }
+) {
+  const supabase = createClient();
+
+  try {
+    const { data, error } = await supabase
+      .from('workout_logs')
+      .update(updates)
+      .eq('id', workoutLogId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating workout log:', error);
+      return { data: null, error };
+    }
+
+    console.log('✅ Workout log updated successfully:', workoutLogId);
+    return { data, error: null };
+  } catch (error) {
+    console.error('Exception updating workout log:', error);
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error('Unknown error updating workout log'),
+    };
+  }
+}
+
+/**
  * Utility function to parse time strings like "30 minutes" or "1 hour" to minutes
  */
 function parseTimeToMinutes(timeStr?: string): number | null {

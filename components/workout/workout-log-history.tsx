@@ -24,6 +24,8 @@ import {
   Flame,
   Clock,
   Activity,
+  Trash2,
+  Pencil,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -45,7 +47,9 @@ import {
 } from '@/components/ui/collapsible'
 
 import { createClient } from '@/lib/supabase/client'
-import { getWorkoutLogs } from '@/lib/supabase/workouts'
+import { getWorkoutLogs, deleteWorkoutLog } from '@/lib/supabase/workouts'
+import { DeleteWorkoutLogDialog } from '@/components/workout/delete-workout-log-dialog'
+import { EditWorkoutLogDialog } from '@/components/workout/edit-workout-log-dialog'
 
 // ============================================================================
 // Types
@@ -94,6 +98,10 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [intensityFilter, setIntensityFilter] = useState<string>('all')
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set())
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [workoutToDelete, setWorkoutToDelete] = useState<WorkoutLog | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [workoutToEdit, setWorkoutToEdit] = useState<WorkoutLog | null>(null)
 
   // ============================================================================
   // Data Fetching
@@ -292,6 +300,49 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
     }
   }
 
+  const handleEditClick = (log: WorkoutLog) => {
+    setWorkoutToEdit(log)
+    setEditDialogOpen(true)
+  }
+
+  const handleEditSave = () => {
+    setEditDialogOpen(false)
+    setWorkoutToEdit(null)
+    // Manually refresh the list for instant feedback
+    loadWorkoutLogs()
+  }
+
+  const handleDeleteClick = (log: WorkoutLog) => {
+    setWorkoutToDelete(log)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!workoutToDelete) return
+
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      alert('You must be logged in to delete workout logs')
+      return
+    }
+
+    const { error } = await deleteWorkoutLog(workoutToDelete.id, user.id)
+
+    if (error) {
+      alert('Failed to delete workout log. Please try again.')
+    } else {
+      // Manually refresh the list for instant feedback
+      loadWorkoutLogs()
+    }
+
+    setDeleteDialogOpen(false)
+    setWorkoutToDelete(null)
+  }
+
   // ============================================================================
   // Render
   // ============================================================================
@@ -420,48 +471,74 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
               {filteredLogs.map((log) => (
                 <Collapsible key={log.id}>
                   <div className="rounded-lg border p-4">
-                    <CollapsibleTrigger
-                      onClick={() => toggleLogExpanded(log.id)}
-                      className="w-full"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 text-left">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">{log.title}</h4>
-                            <Badge className={getIntensityColor(log.intensity)}>
-                              {log.intensity}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {format(new Date(log.completed_at), 'MMM d, yyyy')}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {log.total_duration_minutes} min
-                            </span>
-                            {log.calories_burned && (
+                    <div className="flex items-start justify-between gap-4">
+                      <CollapsibleTrigger
+                        onClick={() => toggleLogExpanded(log.id)}
+                        className="flex-1"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 text-left">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-semibold">{log.title}</h4>
+                              <Badge className={getIntensityColor(log.intensity)}>
+                                {log.intensity}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
-                                <Flame className="h-3 w-3" />
-                                {log.calories_burned} cal
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(log.completed_at), 'MMM d, yyyy')}
                               </span>
-                            )}
-                            <span className="flex items-center gap-1">
-                              <Activity className="h-3 w-3" />
-                              {log.exercises_performed.length} exercises
-                            </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {log.total_duration_minutes} min
+                              </span>
+                              {log.calories_burned && (
+                                <span className="flex items-center gap-1">
+                                  <Flame className="h-3 w-3" />
+                                  {log.calories_burned} cal
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Activity className="h-3 w-3" />
+                                {log.exercises_performed.length} exercises
+                              </span>
+                            </div>
                           </div>
+                          <Button variant="ghost" size="icon">
+                            {expandedLogs.has(log.id) ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="icon">
-                          {expandedLogs.has(log.id) ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
+                      </CollapsibleTrigger>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditClick(log)
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteClick(log)
+                          }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </CollapsibleTrigger>
+                    </div>
 
                     <CollapsibleContent>
                       <div className="mt-4 pt-4 border-t space-y-3">
@@ -516,6 +593,22 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <EditWorkoutLogDialog
+        workoutLog={workoutToEdit}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSave={handleEditSave}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteWorkoutLogDialog
+        workoutLog={workoutToDelete}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   )
 }

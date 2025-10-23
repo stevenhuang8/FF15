@@ -212,6 +212,9 @@ export async function deleteHealthMetrics(userId: string, date: string) {
 
 /**
  * Create a new fitness goal
+ *
+ * IMPORTANT: For weight-based goals, starting_value is automatically set to currentValue
+ * to enable proper progress tracking for weight loss/gain.
  */
 export async function createFitnessGoal(params: {
   userId: string;
@@ -224,11 +227,16 @@ export async function createFitnessGoal(params: {
   const supabase = createClient();
 
   try {
+    // For weight-based goals, starting_value = current_value (the baseline)
+    const isWeightGoal = params.goalType === 'weight_loss' || params.goalType === 'weight_gain';
+    const startingValue = isWeightGoal ? params.currentValue : null;
+
     const goalData: TablesInsert<'fitness_goals'> = {
       user_id: params.userId,
       goal_type: params.goalType,
       target_value: params.targetValue,
       current_value: params.currentValue || null,
+      starting_value: startingValue,
       unit: params.unit || null,
       target_date: params.targetDate || null,
       status: 'active',
@@ -516,14 +524,39 @@ export async function deleteProgressSnapshot(userId: string, date: string) {
 
 /**
  * Calculate goal progress percentage
+ *
+ * Handles different goal types correctly:
+ * - weight_loss: Progress from starting weight to target weight
+ * - weight_gain: Progress from starting weight to target weight
+ * - Other goals: Simple percentage of current/target
  */
 export function calculateGoalProgress(goal: Tables<'fitness_goals'>): number {
-  if (!goal.current_value || !goal.target_value) return 0;
+  const { goal_type, starting_value, current_value, target_value } = goal;
 
-  const progress = (goal.current_value / goal.target_value) * 100;
+  if (!current_value || !target_value) return 0;
 
-  // For goals like weight loss, we may need to invert the calculation
-  // This can be extended based on goal_type
+  // Weight loss goals: measure pounds/kg lost
+  if (goal_type === 'weight_loss' && starting_value) {
+    const totalToLose = starting_value - target_value;
+    if (totalToLose <= 0) return 0; // Invalid goal setup
+
+    const lostSoFar = starting_value - current_value;
+    const progress = (lostSoFar / totalToLose) * 100;
+    return Math.min(Math.max(progress, 0), 100); // Clamp between 0-100
+  }
+
+  // Weight gain goals: measure pounds/kg gained
+  if (goal_type === 'weight_gain' && starting_value) {
+    const totalToGain = target_value - starting_value;
+    if (totalToGain <= 0) return 0; // Invalid goal setup
+
+    const gainedSoFar = current_value - starting_value;
+    const progress = (gainedSoFar / totalToGain) * 100;
+    return Math.min(Math.max(progress, 0), 100); // Clamp between 0-100
+  }
+
+  // Other goals (calorie targets, etc.): simple percentage
+  const progress = (current_value / target_value) * 100;
   return Math.min(Math.max(progress, 0), 100); // Clamp between 0-100
 }
 

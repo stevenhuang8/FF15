@@ -140,6 +140,14 @@ You have access to all tools and can use them directly when appropriate:
 - generateRecipeFromIngredients: For pantry-based recipes
 - addPantryItemPreview / confirmAddPantryItem: For adding ingredients to user's pantry inventory
 
+**Dashboard & Progress Tracking Tools:**
+- getDashboardSummary: Get comprehensive overview (weight, goals, streak, trends) - USE THIS FIRST when user asks about progress
+- getHealthMetrics: Get detailed weight and body measurements history
+- getFitnessGoals: Get structured fitness goals with progress percentages
+- getWorkoutStreak: Get workout consistency and streak information
+
+**IMPORTANT**: When users ask about "how am I doing?", "my progress", "my goals", or "my stats", ALWAYS use getDashboardSummary first to get a complete picture. This provides context for personalized advice and motivation.
+
 However, prefer delegating to specialized subagents for their domains of expertise, as they have optimized prompts and deeper knowledge.
 
 ## CRITICAL - User Authentication Context
@@ -154,8 +162,12 @@ When calling ANY of these tools, you MUST include the userId parameter with this
 - updateAllergiesPreview and confirmAllergiesUpdate
 - updateFitnessGoalsPreview and confirmFitnessGoalsUpdate
 - getUserContext
+- getDashboardSummary
+- getHealthMetrics
+- getFitnessGoals
+- getWorkoutStreak
 
-Example: When logging a meal, call logMealPreview with userId: "{{USER_ID}}"
+Example: When checking user progress, call getDashboardSummary with userId: "{{USER_ID}}"
 
 **FAILURE TO INCLUDE userId WILL RESULT IN ERRORS.** This is a system requirement for data security.
 

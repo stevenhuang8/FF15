@@ -134,6 +134,7 @@ export type Database = {
           current_value: number | null
           goal_type: string
           id: string
+          starting_value: number | null
           status: string | null
           target_date: string | null
           target_value: number
@@ -146,6 +147,7 @@ export type Database = {
           current_value?: number | null
           goal_type: string
           id?: string
+          starting_value?: number | null
           status?: string | null
           target_date?: string | null
           target_value: number
@@ -158,6 +160,7 @@ export type Database = {
           current_value?: number | null
           goal_type?: string
           id?: string
+          starting_value?: number | null
           status?: string | null
           target_date?: string | null
           target_value?: number

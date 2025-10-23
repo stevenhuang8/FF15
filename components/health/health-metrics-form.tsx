@@ -14,13 +14,24 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, CheckCircle2, Scale, Percent, Ruler } from 'lucide-react'
+import { Loader2, CheckCircle2, Scale, Percent, Ruler, Trash2, Trophy } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { MilestoneCelebration, type Milestone } from '@/components/health/milestone-celebration'
 
 import { createClient } from '@/lib/supabase/client'
 import { logHealthMetrics, getHealthMetricsByDate } from '@/lib/supabase/health-metrics'
@@ -83,6 +94,10 @@ export function HealthMetricsForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [canDelete, setCanDelete] = useState(false)
+  const [celebrationMilestone, setCelebrationMilestone] = useState<Milestone | null>(null)
+  const [showCelebration, setShowCelebration] = useState(false)
 
   const {
     register,
@@ -143,10 +158,35 @@ export function HealthMetricsForm({
         setValue('arms', data.arms?.toString() || '')
         setValue('thighs', data.thighs?.toString() || '')
         setValue('notes', data.notes || '')
+
+        // Enable delete if data exists
+        setCanDelete(true)
+      } else {
+        setCanDelete(false)
       }
     }
     loadMetrics()
   }, [userId, selectedDate, setValue])
+
+  // ============================================================================
+  // Delete Handler
+  // ============================================================================
+
+  const handleDelete = async () => {
+    if (!userId || !selectedDate) return
+
+    const { deleteHealthMetrics } = await import('@/lib/supabase/health-metrics')
+    const { error } = await deleteHealthMetrics(userId, selectedDate)
+
+    if (error) {
+      console.error('Failed to delete metrics:', error)
+      return
+    }
+
+    console.log('✅ Health metrics deleted for:', selectedDate)
+    setShowDeleteConfirm(false)
+    onSuccess?.()
+  }
 
   // ============================================================================
   // Form Submission
@@ -183,6 +223,55 @@ export function HealthMetricsForm({
       if (error) {
         console.error('Failed to log health metrics:', error)
         throw error
+      }
+
+      // Auto-sync weight-based goals if weight was logged
+      if (metricsData.weight) {
+        const { syncGoalProgress, checkGoalAchievement } = await import('@/lib/supabase/goal-sync')
+        const supabase = createClient()
+
+        console.log('🔄 Syncing goals with new weight:', metricsData.weight)
+
+        // Sync goals with new weight
+        await syncGoalProgress(userId)
+
+        // Check if any goals were achieved
+        const { data: activeGoals } = await supabase
+          .from('fitness_goals')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+
+        if (activeGoals) {
+          for (const goal of activeGoals) {
+            const result = await checkGoalAchievement(userId, goal.id)
+            if (result.achieved) {
+              console.log('🎉 Goal achieved:', goal.id)
+              // Fetch full goal details for celebration
+              const { data: goalData } = await supabase
+                .from('fitness_goals')
+                .select('*')
+                .eq('id', goal.id)
+                .single()
+
+              if (goalData) {
+                // Import milestone config
+                const { milestoneConfigs } = await import('@/components/health/milestone-celebration')
+                const { Trophy } = await import('lucide-react')
+
+                // Create milestone for celebration
+                const milestone: Milestone = {
+                  ...milestoneConfigs.goal_achieved,
+                  title: 'Goal Achieved!',
+                  description: `Congratulations! You've reached your ${goalData.goal_type.replace('_', ' ')} goal of ${goalData.target_value} ${goalData.unit}!`,
+                }
+
+                setCelebrationMilestone(milestone)
+                setShowCelebration(true)
+              }
+            }
+          }
+        }
       }
 
       setSubmitSuccess(true)
@@ -337,18 +426,33 @@ export function HealthMetricsForm({
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-3 pt-4">
-            {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
+          <div className="flex justify-between gap-3 pt-4">
+            <div>
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Entry
+                </Button>
+              )}
+            </div>
 
-            <Button type="submit" disabled={isSubmitting || submitSuccess}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {submitSuccess && <CheckCircle2 className="mr-2 h-4 w-4" />}
-              {submitSuccess ? 'Saved!' : isSubmitting ? 'Saving...' : 'Save Metrics'}
-            </Button>
+            <div className="flex gap-3">
+              {onCancel && (
+                <Button type="button" variant="outline" onClick={onCancel}>
+                  Cancel
+                </Button>
+              )}
+
+              <Button type="submit" disabled={isSubmitting || submitSuccess}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {submitSuccess && <CheckCircle2 className="mr-2 h-4 w-4" />}
+                {submitSuccess ? 'Saved!' : isSubmitting ? 'Saving...' : 'Save Metrics'}
+              </Button>
+            </div>
           </div>
 
           {/* Success Message */}
@@ -358,6 +462,39 @@ export function HealthMetricsForm({
             </div>
           )}
         </form>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Health Metrics?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete your health metrics for {selectedDate}. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Goal Achievement Celebration */}
+        {celebrationMilestone && (
+          <MilestoneCelebration
+            milestone={celebrationMilestone}
+            open={showCelebration}
+            onClose={() => {
+              setShowCelebration(false)
+              setCelebrationMilestone(null)
+            }}
+          />
+        )}
       </CardContent>
     </Card>
   )

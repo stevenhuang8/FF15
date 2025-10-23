@@ -21,7 +21,7 @@ import {
   TrendingDown,
   TrendingUp,
   Calendar,
-  X,
+  Trash2,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,16 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -133,6 +143,7 @@ export function FitnessGoalSetter({ onSuccess, onCancel }: FitnessGoalSetterProp
   const [userId, setUserId] = useState<string | null>(null)
   const [existingGoals, setExistingGoals] = useState<FitnessGoal[]>([])
   const [loadingGoals, setLoadingGoals] = useState(true)
+  const [goalToDelete, setGoalToDelete] = useState<FitnessGoal | null>(null)
 
   const {
     register,
@@ -205,13 +216,30 @@ export function FitnessGoalSetter({ onSuccess, onCancel }: FitnessGoalSetterProp
     setSubmitSuccess(false)
 
     try {
+      // For weight-based goals, fetch latest weight if current value not provided
+      let currentValue = formData.currentValue ? parseFloat(formData.currentValue) : undefined;
+
+      if (!currentValue && (formData.goalType === 'weight_loss' || formData.goalType === 'weight_gain')) {
+        const supabase = createClient()
+        const { data: latestMetric } = await supabase
+          .from('health_metrics')
+          .select('weight')
+          .eq('user_id', userId)
+          .order('date', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (latestMetric?.weight) {
+          currentValue = latestMetric.weight
+          console.log(`📊 Using latest weight as starting value: ${currentValue} lbs`)
+        }
+      }
+
       const goalData = {
         userId,
         goalType: formData.goalType,
         targetValue: parseFloat(formData.targetValue),
-        currentValue: formData.currentValue
-          ? parseFloat(formData.currentValue)
-          : undefined,
+        currentValue,
         unit: formData.unit,
         targetDate: formData.targetDate || undefined,
       }
@@ -247,13 +275,14 @@ export function FitnessGoalSetter({ onSuccess, onCancel }: FitnessGoalSetterProp
   // Delete Goal
   // ============================================================================
 
-  const handleDeleteGoal = async (goalId: string) => {
-    if (!userId) return
+  const handleDeleteGoal = async () => {
+    if (!userId || !goalToDelete) return
 
-    const { error } = await deleteFitnessGoal(goalId, userId)
+    const { error } = await deleteFitnessGoal(goalToDelete.id, userId)
     if (!error) {
       await loadGoals(userId)
     }
+    setGoalToDelete(null)
   }
 
   // ============================================================================
@@ -315,6 +344,11 @@ export function FitnessGoalSetter({ onSuccess, onCancel }: FitnessGoalSetterProp
                           By: {new Date(goal.target_date).toLocaleDateString()}
                         </span>
                       )}
+                      {(goal.goal_type === 'weight_loss' || goal.goal_type === 'weight_gain') && goal.starting_value && (
+                        <span className="text-xs">
+                          (Started: {goal.starting_value} {goal.unit})
+                        </span>
+                      )}
                     </div>
 
                     {goal.current_value && (
@@ -341,9 +375,9 @@ export function FitnessGoalSetter({ onSuccess, onCancel }: FitnessGoalSetterProp
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDeleteGoal(goal.id)}
+                      onClick={() => setGoalToDelete(goal)}
                     >
-                      <X className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -456,6 +490,29 @@ export function FitnessGoalSetter({ onSuccess, onCancel }: FitnessGoalSetterProp
           </form>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!goalToDelete} onOpenChange={(open) => !open && setGoalToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Fitness Goal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your{' '}
+              {goalToDelete && goalTypeConfig[goalToDelete.goal_type as keyof typeof goalTypeConfig]?.label}{' '}
+              goal. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteGoal}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Goal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -30,3 +30,9 @@ export { addPantryItemPreview, confirmAddPantryItem } from './add-pantry-item';
 
 // User context retrieval
 export { getUserContext } from './get-user-context';
+
+// Dashboard data access tools
+export { getDashboardSummary } from './get-dashboard-summary';
+export { getHealthMetricsTool } from './get-health-metrics';
+export { getFitnessGoalsTool } from './get-fitness-goals';
+export { getWorkoutStreakTool } from './get-workout-streak';

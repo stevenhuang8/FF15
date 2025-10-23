@@ -22,6 +22,11 @@ import {
   confirmFitnessGoalsUpdate,
   // User context retrieval
   getUserContext,
+  // Dashboard data access tools
+  getDashboardSummary,
+  getHealthMetricsTool,
+  getFitnessGoalsTool,
+  getWorkoutStreakTool,
 } from "@/components/agent/tools";
 import { SUBAGENTS } from "@/components/agent/subagents";
 import { openai } from "@ai-sdk/openai";
@@ -145,6 +150,12 @@ export async function POST(request: NextRequest) {
 
         // User context for personalization
         getUserContext,
+
+        // Dashboard data access (health metrics, goals, streaks)
+        getDashboardSummary,
+        getHealthMetrics: getHealthMetricsTool,
+        getFitnessGoals: getFitnessGoalsTool,
+        getWorkoutStreak: getWorkoutStreakTool,
 
         // Specialized tools
         suggestSubstitution,

@@ -56,8 +56,8 @@ export async function createMealLog(
 
     console.log('✅ Meal logged successfully:', data.id);
 
-    // Update daily calorie tracking
-    await updateDailyCalorieTracking(input.userId, new Date());
+    // Update daily calorie tracking (pass the authenticated supabase client)
+    await updateDailyCalorieTracking(input.userId, new Date(), supabase);
 
     // Map snake_case database fields to camelCase TypeScript types
     const mappedData: MealLog = {
@@ -151,21 +151,25 @@ export async function getTodaysMealLogs(
   const supabase = createClient();
 
   try {
-    // Get today's date in local timezone as YYYY-MM-DD
-    // This ensures we're comparing dates in the user's local timezone
-    const todayLocal = formatDateForDB(new Date());
+    // Create start and end of day in local timezone, then convert to ISO (UTC)
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
 
-    console.log(`🔍 Fetching meals for date: ${todayLocal}`);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
 
-    // Query for all meals where the date portion matches today
-    // We cast logged_at to date in Pacific timezone to match local time
+    const startISO = startOfDay.toISOString();
+    const endISO = endOfDay.toISOString();
+
+    console.log(`🔍 Fetching meals between ${startISO} and ${endISO}`);
+
+    // Query for all meals in today's date range (local timezone)
     const { data, error } = await supabase
       .from('meal_logs')
       .select('*')
       .eq('user_id', userId)
-      // Match on date portion only, converted to local timezone
-      .gte('logged_at', `${todayLocal}T00:00:00`)
-      .lt('logged_at', `${todayLocal}T23:59:59.999`)
+      .gte('logged_at', startISO)
+      .lte('logged_at', endISO)
       .order('logged_at', { ascending: false });
 
     if (error) {
@@ -238,8 +242,8 @@ export async function updateMealLog(
 
     console.log('✅ Meal log updated:', data.id);
 
-    // Update daily calorie tracking
-    await updateDailyCalorieTracking(userId, new Date());
+    // Update daily calorie tracking (pass the supabase client)
+    await updateDailyCalorieTracking(userId, new Date(), supabase);
 
     // Map snake_case database fields to camelCase TypeScript types
     const mappedData: MealLog = {
@@ -289,8 +293,8 @@ export async function deleteMealLog(
 
     console.log('✅ Meal log deleted:', mealLogId);
 
-    // Update daily calorie tracking
-    await updateDailyCalorieTracking(userId, new Date());
+    // Update daily calorie tracking (pass the supabase client)
+    await updateDailyCalorieTracking(userId, new Date(), supabase);
 
     return { data: null, error: null };
   } catch (error) {
@@ -312,9 +316,10 @@ export async function deleteMealLog(
  */
 export async function updateDailyCalorieTracking(
   userId: string,
-  date: Date
+  date: Date,
+  supabaseClient?: SupabaseClient
 ): Promise<NutritionServiceResponse<void>> {
-  const supabase = createClient();
+  const supabase = supabaseClient || createClient();
 
   try {
     // Create proper date range in local timezone, then convert to UTC for query

@@ -248,6 +248,11 @@ export async function logWorkout(
     }
 
     console.log('✅ Workout logged successfully:', data.id);
+
+    // Update daily calorie tracking (pass the authenticated supabase client)
+    const { updateDailyCalorieTracking } = await import('@/lib/nutrition/meal-logging');
+    await updateDailyCalorieTracking(params.userId, new Date(), supabase);
+
     return { data, error: null };
   } catch (error) {
     console.error('Exception logging workout:', error);
@@ -448,6 +453,11 @@ export async function deleteWorkoutLog(workoutLogId: string, userId: string) {
     }
 
     console.log('✅ Workout log deleted successfully:', workoutLogId);
+
+    // Update daily calorie tracking (pass the supabase client)
+    const { updateDailyCalorieTracking } = await import('@/lib/nutrition/meal-logging');
+    await updateDailyCalorieTracking(userId, new Date(), supabase);
+
     return { error: null };
   } catch (error) {
     console.error('Exception deleting workout log:', error);
@@ -490,6 +500,11 @@ export async function updateWorkoutLog(
     }
 
     console.log('✅ Workout log updated successfully:', workoutLogId);
+
+    // Update daily calorie tracking (pass the supabase client)
+    const { updateDailyCalorieTracking } = await import('@/lib/nutrition/meal-logging');
+    await updateDailyCalorieTracking(userId, new Date(), supabase);
+
     return { data, error: null };
   } catch (error) {
     console.error('Exception updating workout log:', error);

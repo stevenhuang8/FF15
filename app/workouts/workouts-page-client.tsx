@@ -36,7 +36,7 @@ type SavedWorkout = Tables<'workout_plans'>
 
 export function WorkoutsPageClient() {
   const [logDialogOpen, setLogDialogOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState('plans')
+  const [activeTab, setActiveTab] = useState('history') // Default to workout history
   const [workouts, setWorkouts] = useState<SavedWorkout[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedWorkout, setSelectedWorkout] = useState<SavedWorkout | null>(null)

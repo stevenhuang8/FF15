@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/popover'
 import type { Ingredient, IngredientUnit, IngredientCategory } from '@/types/ingredient'
 import { INGREDIENT_UNITS, INGREDIENT_CATEGORIES } from '@/types/ingredient'
-import { cn } from '@/lib/utils'
+import { cn, formatDateForDB } from '@/lib/utils'
 
 interface IngredientEditDialogProps {
   ingredient: Ingredient | null
@@ -52,7 +52,7 @@ export function IngredientEditDialog({
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState<IngredientUnit>('g')
-  const [category, setCategory] = useState<IngredientCategory | ''>('')
+  const [category, setCategory] = useState<IngredientCategory | '' | 'none'>('')
   const [expiryDate, setExpiryDate] = useState<Date | undefined>(undefined)
   const [notes, setNotes] = useState('')
 
@@ -104,7 +104,8 @@ export function IngredientEditDialog({
           quantity: quantityNum,
           unit,
           category: category && category !== 'none' ? category : null,
-          expiryDate: expiryDate ? expiryDate.toISOString() : null,
+          // Use formatDateForDB to save as YYYY-MM-DD in local timezone
+          expiryDate: expiryDate ? formatDateForDB(expiryDate) : null,
           notes: notes.trim() || null,
         }),
       })

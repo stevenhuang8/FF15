@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { formatDateForDB } from '@/lib/utils'
 
 /**
  * Ingredients API - List and Create
@@ -12,7 +13,8 @@ const createIngredientSchema = z.object({
   quantity: z.number().positive('Quantity must be positive'),
   unit: z.string().min(1, 'Unit is required'),
   category: z.string().optional().nullable(),
-  expiryDate: z.string().datetime().optional().nullable(),
+  // Accept YYYY-MM-DD format to match nutrition/workout pattern
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
 })
 
@@ -58,16 +60,17 @@ export async function GET(request: NextRequest) {
       const sevenDaysFromNow = new Date(now)
       sevenDaysFromNow.setDate(now.getDate() + 7)
 
+      // Use formatDateForDB to get YYYY-MM-DD in local timezone (matches nutrition pattern)
       if (expiryFilter === 'expired') {
-        query = query.lt('expiry_date', now.toISOString().split('T')[0])
+        query = query.lt('expiry_date', formatDateForDB(now))
       } else if (expiryFilter === 'expiring-soon') {
         query = query
-          .gte('expiry_date', now.toISOString().split('T')[0])
-          .lte('expiry_date', threeDaysFromNow.toISOString().split('T')[0])
+          .gte('expiry_date', formatDateForDB(now))
+          .lte('expiry_date', formatDateForDB(threeDaysFromNow))
       } else if (expiryFilter === 'fresh') {
         query = query
-          .gte('expiry_date', now.toISOString().split('T')[0])
-          .lte('expiry_date', sevenDaysFromNow.toISOString().split('T')[0])
+          .gte('expiry_date', formatDateForDB(now))
+          .lte('expiry_date', formatDateForDB(sevenDaysFromNow))
       }
     }
 
@@ -126,7 +129,8 @@ export async function POST(request: NextRequest) {
       quantity,
       unit,
       category: category || null,
-      expiry_date: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : null,
+      // Store YYYY-MM-DD directly (matches nutrition/workout pattern)
+      expiry_date: expiryDate || null,
       notes: notes || null,
     }
     console.log('💾 Inserting into database:', JSON.stringify(insertData, null, 2))

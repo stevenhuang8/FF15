@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import type { Ingredient } from '@/types/ingredient'
-import { cn, formatPacificDate } from '@/lib/utils'
+import { cn, formatPacificDate, parseLocalDate } from '@/lib/utils'
 
 interface IngredientCardProps {
   ingredient: Ingredient
@@ -43,7 +43,8 @@ function getExpiryStatus(expiryDate: Date | null | undefined): {
   }
 
   const now = new Date()
-  const expiry = new Date(expiryDate)
+  // Parse YYYY-MM-DD strings as local dates to prevent timezone shift
+  const expiry = typeof expiryDate === 'string' ? parseLocalDate(expiryDate) : expiryDate
   const diffTime = expiry.getTime() - now.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
@@ -64,7 +65,8 @@ function getExpiryStatus(expiryDate: Date | null | undefined): {
 function formatExpiryDate(expiryDate: Date | null | undefined): string {
   if (!expiryDate) return 'No expiry date'
 
-  const date = new Date(expiryDate)
+  // Parse YYYY-MM-DD strings as local dates to prevent timezone shift
+  const date = typeof expiryDate === 'string' ? parseLocalDate(expiryDate) : expiryDate
   const now = new Date()
   const diffTime = date.getTime() - now.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))

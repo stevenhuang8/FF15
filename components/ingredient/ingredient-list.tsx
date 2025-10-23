@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { IngredientCard } from './ingredient-card'
 import type { Ingredient, IngredientCategory } from '@/types/ingredient'
+import { parseLocalDate } from '@/lib/utils'
 
 interface IngredientListProps {
   ingredients: Ingredient[]
@@ -53,7 +54,8 @@ export function IngredientList({
     if (!expiryDate) return 'all'
 
     const now = new Date()
-    const expiry = new Date(expiryDate)
+    // Parse YYYY-MM-DD strings as local dates to prevent timezone shift
+    const expiry = typeof expiryDate === 'string' ? parseLocalDate(expiryDate) : expiryDate
     const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
     if (diffDays < 0) return 'expired'
@@ -100,12 +102,16 @@ export function IngredientList({
         case 'expiry-asc': {
           if (!a.expiryDate) return 1
           if (!b.expiryDate) return -1
-          return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
+          const dateA = typeof a.expiryDate === 'string' ? parseLocalDate(a.expiryDate) : a.expiryDate
+          const dateB = typeof b.expiryDate === 'string' ? parseLocalDate(b.expiryDate) : b.expiryDate
+          return dateA.getTime() - dateB.getTime()
         }
         case 'expiry-desc': {
           if (!a.expiryDate) return 1
           if (!b.expiryDate) return -1
-          return new Date(b.expiryDate).getTime() - new Date(a.expiryDate).getTime()
+          const dateA = typeof a.expiryDate === 'string' ? parseLocalDate(a.expiryDate) : a.expiryDate
+          const dateB = typeof b.expiryDate === 'string' ? parseLocalDate(b.expiryDate) : b.expiryDate
+          return dateB.getTime() - dateA.getTime()
         }
         case 'quantity-asc':
           return a.quantity - b.quantity

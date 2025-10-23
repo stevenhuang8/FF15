@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { formatDateForDB } from '@/lib/utils'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,7 +61,8 @@ export default function IngredientsPage() {
         name: ing.name,
         quantity: ing.quantity,
         unit: ing.unit,
-        expiryDate: (ing as any).expiry_date ? new Date((ing as any).expiry_date) : null,
+        // Keep date as YYYY-MM-DD string (parseLocalDate handles it in display components)
+        expiryDate: (ing as any).expiry_date || null,
         category: ing.category,
         notes: ing.notes,
         createdAt: new Date((ing as any).created_at),
@@ -93,7 +95,8 @@ export default function IngredientsPage() {
         quantity: data.quantity,
         unit: data.unit,
         category: data.category || null,
-        expiryDate: data.expiryDate ? data.expiryDate.toISOString() : null,
+        // Convert Date to YYYY-MM-DD format (matches nutrition/workout pattern)
+        expiryDate: data.expiryDate ? formatDateForDB(data.expiryDate) : null,
         notes: data.notes?.trim() || null,
       }
 

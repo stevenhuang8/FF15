@@ -12,7 +12,8 @@ const updateIngredientSchema = z.object({
   quantity: z.number().positive().optional(),
   unit: z.string().min(1).optional(),
   category: z.string().optional().nullable(),
-  expiryDate: z.string().datetime().optional().nullable(),
+  // Accept YYYY-MM-DD format to match nutrition/workout pattern
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
 })
 
@@ -67,9 +68,8 @@ export async function PATCH(
       updateData.category = updates.category
     }
     if (updates.expiryDate !== undefined) {
-      updateData.expiry_date = updates.expiryDate
-        ? new Date(updates.expiryDate).toISOString().split('T')[0]
-        : null
+      // Store YYYY-MM-DD directly (matches nutrition/workout pattern)
+      updateData.expiry_date = updates.expiryDate || null
     }
     if (updates.notes !== undefined) {
       updateData.notes = updates.notes

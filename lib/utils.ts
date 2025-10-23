@@ -11,6 +11,7 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Format date to user's local timezone string (e.g., "Oct 20, 2025")
+ * Uses browser's default locale for internationalization
  */
 export function formatLocalDate(
   date: Date | string | null | undefined,
@@ -20,13 +21,14 @@ export function formatLocalDate(
 
   const d = typeof date === 'string' ? new Date(date) : date
 
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(undefined, {
     ...options,
   })
 }
 
 /**
  * Format time to user's local timezone string (e.g., "3:45 PM")
+ * Uses browser's default locale for internationalization
  */
 export function formatLocalTime(
   date: Date | string | null | undefined,
@@ -36,13 +38,14 @@ export function formatLocalTime(
 
   const d = typeof date === 'string' ? new Date(date) : date
 
-  return d.toLocaleTimeString('en-US', {
+  return d.toLocaleTimeString(undefined, {
     ...options,
   })
 }
 
 /**
  * Format date and time to user's local timezone string
+ * Uses browser's default locale for internationalization
  */
 export function formatLocalDateTime(
   date: Date | string | null | undefined,
@@ -52,7 +55,7 @@ export function formatLocalDateTime(
 
   const d = typeof date === 'string' ? new Date(date) : date
 
-  return d.toLocaleString('en-US', {
+  return d.toLocaleString(undefined, {
     ...options,
   })
 }

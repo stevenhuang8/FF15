@@ -1,5 +1,32 @@
 # Development Notes & Known Issues
 
+## Status Summary (Last Updated: 2025-01-22)
+
+### ✅ Recently Fixed Issues
+1. **Agent knows user's name** - System prompt now personalizes responses
+2. **RLS policy violation on meal logging** - Fixed server-side client authentication
+3. **Meals not displaying in "Today's Meals"** - Fixed timezone mismatch in query
+4. **Workout history default tab** - Changed to show history first instead of plans
+5. **Ingredients not saving in pantry** (Issue #6) - Database migration executed
+6. **Ingredient quantity input issues** (Issue #8) - Input field now functional
+7. **Workout exercise input not working** (Issue #9) - Fixed
+8. **Meal food items input not working** (Issue #10) - Fixed
+
+### ❌ Outstanding Issues (Need Attention)
+1. **Sources disappear on conversation refresh** (Issue #1) - HIGH PRIORITY
+2. **No account deletion option** (Issue #2) - PRIVACY/UX issue
+3. **Chat history UI issues** (Issue #3) - Styling and responsiveness
+4. **Chat UI/conversation interface issues** (Issue #4) - Message formatting and mobile UX
+5. **Recipe instruction parsing issues** (Issue #5) - Recommend AI SDK `generateObject` approach
+
+### 📋 Feature Requests & Architectural Plans
+- Multi-agent architecture ✅ IMPLEMENTED
+- Conversational data logging ✅ IMPLEMENTED
+- Unified agent architecture (Proposed, not yet implemented)
+- Chat assistant pantry access (Deferred - stub exists)
+
+---
+
 ## Known Issues
 
 ### 1. Sources Disappear on Conversation History Refresh
@@ -154,7 +181,7 @@ Database error: {
 
 **Solution**: Run the migration in `supabase-ingredients-notes-migration.sql` to add the missing column.
 
-**Status**: Migration created, waiting for manual execution in Supabase dashboard.
+**Status**: ✅ FIXED - Migration executed, ingredients now save correctly.
 
 ---
 
@@ -217,7 +244,7 @@ Database error: {
 - Consider using number input type with proper step/min/max attributes
 - Add visual feedback when field is focused and editable
 
-**Status**: Reported - needs investigation and fix.
+**Status**: ✅ FIXED - Input field now properly accepts user input.
 
 ---
 
@@ -238,7 +265,7 @@ Database error: {
 - Exercise input component (needs identification)
 - May involve form state management issues
 
-**Status**: Reported - needs investigation and fix.
+**Status**: ✅ FIXED - Exercise input now properly accepts user input.
 
 ---
 
@@ -261,7 +288,7 @@ Database error: {
 - May involve shared form component with workout feature
 - May involve form state management issues
 
-**Status**: Reported - needs investigation and fix. Likely shares root cause with issue #9.
+**Status**: ✅ FIXED - Food item input now properly accepts user input.
 
 ---
 

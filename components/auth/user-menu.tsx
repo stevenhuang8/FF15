@@ -49,13 +49,13 @@ export function UserMenu({ user }: UserMenuProps) {
             </p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push('/profile')}>
+        <DropdownMenuSeparator key="separator-1" />
+        <DropdownMenuItem key="profile" onClick={() => router.push('/profile')}>
           <Settings className="mr-2 h-4 w-4" />
           <span>Profile Settings</span>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut}>
+        <DropdownMenuSeparator key="separator-2" />
+        <DropdownMenuItem key="signout" onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Sign Out</span>
         </DropdownMenuItem>

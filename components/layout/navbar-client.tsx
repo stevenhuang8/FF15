@@ -82,12 +82,15 @@ export function NavbarClient({ user, userMenuComponent }: NavbarClientProps) {
             <>
               {/* Mobile Menu Button */}
               <button
+                key="mobile-menu-btn"
                 onClick={() => setIsOpen(!isOpen)}
                 className="md:hidden p-2 rounded-md hover:bg-accent transition-smooth"
               >
                 {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
-              {userMenuComponent}
+              <div key="user-menu-wrapper">
+                {userMenuComponent}
+              </div>
             </>
           ) : (
             <div className="flex items-center space-x-2">

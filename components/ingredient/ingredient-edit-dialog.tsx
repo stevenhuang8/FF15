@@ -62,7 +62,7 @@ export function IngredientEditDialog({
       setName(ingredient.name)
       setQuantity(ingredient.quantity.toString())
       setUnit(ingredient.unit as IngredientUnit)
-      setCategory((ingredient.category as IngredientCategory) || '')
+      setCategory((ingredient.category as IngredientCategory) || 'none')
       setExpiryDate(ingredient.expiryDate ? new Date(ingredient.expiryDate) : undefined)
       setNotes(ingredient.notes || '')
     } else {
@@ -70,7 +70,7 @@ export function IngredientEditDialog({
       setName('')
       setQuantity('')
       setUnit('g')
-      setCategory('')
+      setCategory('none')
       setExpiryDate(undefined)
       setNotes('')
     }
@@ -103,7 +103,7 @@ export function IngredientEditDialog({
           name: name.trim(),
           quantity: quantityNum,
           unit,
-          category: category || null,
+          category: category && category !== 'none' ? category : null,
           expiryDate: expiryDate ? expiryDate.toISOString() : null,
           notes: notes.trim() || null,
         }),
@@ -188,7 +188,7 @@ export function IngredientEditDialog({
                 <SelectValue placeholder="Select category (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {INGREDIENT_CATEGORIES.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat}

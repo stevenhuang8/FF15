@@ -27,6 +27,7 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { parseLocalDate } from '@/lib/utils'
 
 // ============================================================================
 // Component Types
@@ -57,6 +58,7 @@ interface ProgressChartProps {
   yAxisLabel?: string
   height?: number
   showLegend?: boolean
+  onDataPointClick?: (dataPoint: ChartDataPoint | MultiSeriesDataPoint) => void
 }
 
 interface MultiChartProps {
@@ -64,6 +66,7 @@ interface MultiChartProps {
   calorieData?: MultiSeriesDataPoint[]
   workoutData?: ChartDataPoint[]
   measurementsData?: MultiSeriesDataPoint[]
+  onWeightDataPointClick?: (dataPoint: ChartDataPoint) => void
 }
 
 // ============================================================================
@@ -124,17 +127,37 @@ export function ProgressChart({
   yAxisLabel,
   height = 300,
   showLegend = true,
+  onDataPointClick,
 }: ProgressChartProps) {
   // Format date for display
   const formattedData = useMemo(() => {
     return data.map((point) => ({
       ...point,
-      date: new Date(point.date).toLocaleDateString('en-US', {
+      date: parseLocalDate(point.date).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       }),
     }))
   }, [data])
+
+  // Handle datapoint clicks
+  const handleDotClick = (clickData: any) => {
+    if (!onDataPointClick) return
+
+    // Find the original data point (with full ISO date)
+    const clickedFormattedDate = clickData.payload.date
+    const originalPoint = data.find((point) => {
+      const formattedDate = parseLocalDate(point.date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      })
+      return formattedDate === clickedFormattedDate
+    })
+
+    if (originalPoint) {
+      onDataPointClick(originalPoint)
+    }
+  }
 
   const renderChart = () => {
     const commonProps = {
@@ -260,7 +283,7 @@ export function ProgressChart({
                   name={series.name}
                   stroke={series.color}
                   strokeWidth={2}
-                  dot={{ r: 4 }}
+                  dot={onDataPointClick ? { r: 4, cursor: 'pointer', onClick: handleDotClick } : { r: 4 }}
                   activeDot={{ r: 6 }}
                 />
               ))
@@ -270,7 +293,7 @@ export function ProgressChart({
                 dataKey={dataKey}
                 stroke={chartColor}
                 strokeWidth={2}
-                dot={{ r: 4 }}
+                dot={onDataPointClick ? { r: 4, cursor: 'pointer', onClick: handleDotClick } : { r: 4 }}
                 activeDot={{ r: 6 }}
               />
             )}
@@ -303,6 +326,7 @@ export function ProgressChartDashboard({
   calorieData = [],
   workoutData = [],
   measurementsData = [],
+  onWeightDataPointClick,
 }: MultiChartProps) {
   return (
     <Tabs defaultValue="weight" className="w-full">
@@ -322,6 +346,7 @@ export function ProgressChartDashboard({
             type="line"
             yAxisLabel="Weight (lbs)"
             height={400}
+            onDataPointClick={onWeightDataPointClick as ((dataPoint: ChartDataPoint | MultiSeriesDataPoint) => void) | undefined}
           />
         ) : (
           <Card>

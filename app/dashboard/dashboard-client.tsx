@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Plus, TrendingUp, Target, Activity, Calendar } from 'lucide-react'
+import { Plus, TrendingUp, Target, Activity, Calendar, Trash2, Edit } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -24,6 +24,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 import { HealthMetricsForm } from '@/components/health/health-metrics-form'
 import { FitnessGoalSetter } from '@/components/health/fitness-goal-setter'
@@ -35,8 +45,12 @@ import {
   getDashboardData,
   getHealthMetrics,
   calculateGoalProgress,
+  deleteFitnessGoal,
+  getHealthMetricsByDate,
+  deleteHealthMetrics,
 } from '@/lib/supabase/health-metrics'
 import { autoGenerateSnapshot } from '@/lib/health/snapshot-generator'
+import { parseLocalDate } from '@/lib/utils'
 import type { Tables } from '@/types/supabase'
 
 // ============================================================================
@@ -75,6 +89,11 @@ export default function DashboardClient() {
   const [isLoading, setIsLoading] = useState(true)
   const [showMetricsForm, setShowMetricsForm] = useState(false)
   const [showGoalSetter, setShowGoalSetter] = useState(false)
+  const [goalToDelete, setGoalToDelete] = useState<FitnessGoal | null>(null)
+  const [selectedMetric, setSelectedMetric] = useState<HealthMetric | null>(null)
+  const [showMetricDialog, setShowMetricDialog] = useState(false)
+  const [showMetricDeleteConfirm, setShowMetricDeleteConfirm] = useState(false)
+  const [editingMetricDate, setEditingMetricDate] = useState<string | null>(null)
 
   // ============================================================================
   // Load Dashboard Data
@@ -252,6 +271,7 @@ export default function DashboardClient() {
 
   const handleMetricsSuccess = () => {
     setShowMetricsForm(false)
+    setEditingMetricDate(null)
     if (userId) {
       loadDashboard(userId)
     }
@@ -261,6 +281,68 @@ export default function DashboardClient() {
     setShowGoalSetter(false)
     if (userId) {
       loadDashboard(userId)
+    }
+  }
+
+  const handleDeleteGoal = async () => {
+    if (!userId || !goalToDelete) return
+
+    const { error } = await deleteFitnessGoal(goalToDelete.id, userId)
+    if (!error) {
+      console.log('✅ Goal deleted successfully')
+      setGoalToDelete(null)
+      await loadDashboard(userId)
+    } else {
+      console.error('❌ Error deleting goal:', error)
+    }
+  }
+
+  const formatGoalType = (goalType: string): string => {
+    const goalTypeLabels: Record<string, string> = {
+      weight_loss: 'Weight Loss',
+      weight_gain: 'Weight Gain',
+      muscle_gain: 'Muscle Gain',
+      body_fat_reduction: 'Body Fat Reduction',
+      calorie_target: 'Daily Calorie Target',
+      workout_frequency: 'Workout Frequency',
+    }
+    return goalTypeLabels[goalType] || goalType
+  }
+
+  const handleWeightDataPointClick = async (dataPoint: ChartDataPoint) => {
+    if (!userId) return
+
+    console.log('📊 Weight datapoint clicked:', dataPoint.date)
+
+    // Fetch full health metric data for this date
+    const { data: metric } = await getHealthMetricsByDate(userId, dataPoint.date)
+
+    if (metric) {
+      setSelectedMetric(metric)
+      setShowMetricDialog(true)
+    }
+  }
+
+  const handleEditMetric = () => {
+    if (selectedMetric) {
+      setEditingMetricDate(selectedMetric.date)
+      setShowMetricDialog(false)
+      setShowMetricsForm(true)
+    }
+  }
+
+  const handleDeleteMetric = async () => {
+    if (!userId || !selectedMetric) return
+
+    const { error } = await deleteHealthMetrics(userId, selectedMetric.date)
+    if (!error) {
+      console.log('✅ Health metric deleted successfully')
+      setSelectedMetric(null)
+      setShowMetricDeleteConfirm(false)
+      setShowMetricDialog(false)
+      await loadDashboard(userId)
+    } else {
+      console.error('❌ Error deleting health metric:', error)
     }
   }
 
@@ -307,6 +389,7 @@ export default function DashboardClient() {
               <HealthMetricsForm
                 onSuccess={handleMetricsSuccess}
                 onCancel={() => setShowMetricsForm(false)}
+                defaultDate={editingMetricDate || undefined}
               />
             </DialogContent>
           </Dialog>
@@ -408,14 +491,24 @@ export default function DashboardClient() {
               {activeGoals.slice(0, 3).map((goal) => {
                 const progress = calculateGoalProgress(goal)
                 return (
-                  <div key={goal.id} className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">{goal.goal_type}</p>
+                  <div key={goal.id} className="flex items-center justify-between gap-4">
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-none">{formatGoalType(goal.goal_type)}</p>
                       <p className="text-sm text-muted-foreground">
                         {goal.current_value || '—'} / {goal.target_value} {goal.unit}
                       </p>
                     </div>
-                    <div className="text-sm font-medium">{progress.toFixed(0)}%</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-medium">{progress.toFixed(0)}%</div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setGoalToDelete(goal)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 )
               })}
@@ -430,7 +523,150 @@ export default function DashboardClient() {
         calorieData={calorieData}
         workoutData={workoutData}
         measurementsData={measurementsData}
+        onWeightDataPointClick={handleWeightDataPointClick}
       />
+
+      {/* Delete Goal Confirmation Dialog */}
+      <AlertDialog open={!!goalToDelete} onOpenChange={(open) => !open && setGoalToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Fitness Goal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your{' '}
+              {goalToDelete && formatGoalType(goalToDelete.goal_type)} goal. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteGoal}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Goal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Health Metric View Dialog */}
+      <Dialog open={showMetricDialog} onOpenChange={setShowMetricDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Health Metrics - {selectedMetric && parseLocalDate(selectedMetric.date).toLocaleDateString()}
+            </DialogTitle>
+            <DialogDescription>View or modify your health metrics for this date</DialogDescription>
+          </DialogHeader>
+
+          {selectedMetric && (
+            <div className="space-y-4">
+              {/* Weight */}
+              {selectedMetric.weight && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Weight:</span>
+                  <span className="font-medium">{selectedMetric.weight} lbs</span>
+                </div>
+              )}
+
+              {/* Body Fat */}
+              {selectedMetric.body_fat_percentage && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Body Fat:</span>
+                  <span className="font-medium">{selectedMetric.body_fat_percentage}%</span>
+                </div>
+              )}
+
+              {/* Measurements */}
+              {(selectedMetric.waist || selectedMetric.chest || selectedMetric.hips ||
+                selectedMetric.arms || selectedMetric.thighs) && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Measurements (inches):</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {selectedMetric.waist && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Waist:</span>
+                        <span>{selectedMetric.waist}"</span>
+                      </div>
+                    )}
+                    {selectedMetric.chest && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Chest:</span>
+                        <span>{selectedMetric.chest}"</span>
+                      </div>
+                    )}
+                    {selectedMetric.hips && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Hips:</span>
+                        <span>{selectedMetric.hips}"</span>
+                      </div>
+                    )}
+                    {selectedMetric.arms && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Arms:</span>
+                        <span>{selectedMetric.arms}"</span>
+                      </div>
+                    )}
+                    {selectedMetric.thighs && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Thighs:</span>
+                        <span>{selectedMetric.thighs}"</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedMetric.notes && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Notes:</p>
+                  <p className="text-sm text-muted-foreground">{selectedMetric.notes}</p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={handleEditMetric}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setShowMetricDialog(false)
+                    setShowMetricDeleteConfirm(true)
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Metric Confirmation Dialog */}
+      <AlertDialog open={showMetricDeleteConfirm} onOpenChange={setShowMetricDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Health Metrics?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your health metrics for{' '}
+              {selectedMetric && parseLocalDate(selectedMetric.date).toLocaleDateString()}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMetric}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

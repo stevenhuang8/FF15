@@ -51,7 +51,7 @@ export function NutritionPageClient() {
   }
 
   return (
-    <div className="container max-w-7xl py-8">
+    <div className="container mx-auto max-w-7xl py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Nutrition</h1>

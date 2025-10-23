@@ -82,14 +82,43 @@ export async function POST(request: NextRequest) {
     const userName = userProfile?.full_name || "there";
     console.log("👤 User name:", userName);
 
+    // Get user's timezone from request headers (sent from browser)
+    const userTimezone = request.headers.get('X-User-Timezone') || 'UTC';
+    const timezoneOffset = request.headers.get('X-User-Timezone-Offset') || '0';
+
+    const timezone = userTimezone;
+    const offset = parseInt(timezoneOffset, 10);
+
+    console.log("🌍 User timezone:", timezone, `(offset: ${offset} minutes)`);
+
+    // Get current date/time in user's timezone
+    const currentDate = new Date();
+    const formattedDate = currentDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: timezone
+    });
+    const formattedTime = currentDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: timezone
+    });
+
+    console.log("📅 Current date/time:", formattedDate, "at", formattedTime);
+
     const modelMessages = convertToModelMessages(messages);
 
     console.log("🤖 Orchestrator agent activated with", Object.keys(SUBAGENTS).length, "subagents");
 
-    // Inject user ID and name into system prompt for tool calls and personalization
+    // Inject user ID, name, and current date/time into system prompt
     const systemPromptWithUserContext = ORCHESTRATOR_PROMPT
       .replace("{{USER_ID}}", user.id)
-      .replace("{{USER_NAME}}", userName);
+      .replace("{{USER_NAME}}", userName)
+      .replace("{{CURRENT_DATE}}", formattedDate)
+      .replace("{{CURRENT_TIME}}", formattedTime);
 
     const result = streamText({
       model: openai("gpt-5"),

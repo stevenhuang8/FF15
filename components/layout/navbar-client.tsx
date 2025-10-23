@@ -80,6 +80,9 @@ export function NavbarClient({ user, userMenuComponent }: NavbarClientProps) {
         <div className="flex flex-1 md:flex-initial items-center justify-end space-x-2">
           {user ? (
             <>
+              <div key="user-menu-wrapper">
+                {userMenuComponent}
+              </div>
               {/* Mobile Menu Button */}
               <button
                 key="mobile-menu-btn"
@@ -88,9 +91,6 @@ export function NavbarClient({ user, userMenuComponent }: NavbarClientProps) {
               >
                 {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
-              <div key="user-menu-wrapper">
-                {userMenuComponent}
-              </div>
             </>
           ) : (
             <div className="flex items-center space-x-2">

@@ -174,8 +174,19 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
   const [input, setInput] = useState("");
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId || null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  // Get user's timezone to send with every request
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezoneOffset = new Date().getTimezoneOffset();
+
   const { messages: rawMessages, status, sendMessage, setMessages } = useChat({
-    transport: api ? new DefaultChatTransport({ api }) : undefined,
+    transport: api ? new DefaultChatTransport({
+      api,
+      headers: {
+        'X-User-Timezone': userTimezone,
+        'X-User-Timezone-Offset': String(timezoneOffset),
+      }
+    }) : undefined,
   });
 
   // Debounced messages for performance - update every 30ms instead of every token

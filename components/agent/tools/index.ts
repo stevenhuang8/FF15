@@ -36,3 +36,7 @@ export { getDashboardSummary } from './get-dashboard-summary';
 export { getHealthMetricsTool } from './get-health-metrics';
 export { getFitnessGoalsTool } from './get-fitness-goals';
 export { getWorkoutStreakTool } from './get-workout-streak';
+
+// Structured fitness goal management
+export { createFitnessGoalTool } from './create-fitness-goal';
+export { updateStructuredGoalTool } from './update-structured-goal';

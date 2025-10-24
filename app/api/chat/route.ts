@@ -27,6 +27,9 @@ import {
   getHealthMetricsTool,
   getFitnessGoalsTool,
   getWorkoutStreakTool,
+  // Structured fitness goal management
+  createFitnessGoalTool,
+  updateStructuredGoalTool,
 } from "@/components/agent/tools";
 import { SUBAGENTS } from "@/components/agent/subagents";
 import { openai } from "@ai-sdk/openai";
@@ -181,6 +184,10 @@ export async function POST(request: NextRequest) {
         confirmAllergiesUpdate,
         updateFitnessGoalsPreview,
         confirmFitnessGoalsUpdate,
+
+        // Structured fitness goal management (Active Goals section)
+        createFitnessGoal: createFitnessGoalTool,
+        updateStructuredGoal: updateStructuredGoalTool,
 
         // Web search
         web_search: openai.tools.webSearch({

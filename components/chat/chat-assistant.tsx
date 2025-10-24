@@ -33,6 +33,7 @@ import { SaveWorkoutButton } from "@/components/workout/save-workout-button";
 import { RecipeFromIngredientsButton } from "@/components/recipe/recipe-from-ingredients-button";
 import { isRecipeContent, getMessageTextContent } from "@/lib/recipe-detection";
 import { isWorkoutContent } from "@/lib/workout-detection";
+import { Loader2 } from "lucide-react";
 
 interface ChatAssistantProps {
   api?: string;
@@ -53,21 +54,23 @@ const MemoizedMessage = memo(({
   const content = textParts.map((part: any, i: number) => part.text).join('') || message.content || "";
 
   // Check if assistant is streaming with no content yet
-  const isAssistantStreamingEmpty = message.role === 'assistant' && isStreaming && !content;
+  // Use trim() to check for actual text content, not just whitespace or empty strings
+  const isAssistantStreamingEmpty = message.role === 'assistant' && isStreaming && !content.trim();
 
   return (
     <>
       {/* Render text message if there's content OR if assistant is streaming (show placeholder) */}
-      {(textParts.length > 0 || message.content || isAssistantStreamingEmpty) && (
+      {(content.trim() || isAssistantStreamingEmpty) && (
         <Message from={message.role}>
           <MessageContent>
-            <Response>
-              {isAssistantStreamingEmpty ? (
-                <span className="text-muted-foreground animate-pulse">...</span>
-              ) : (
-                content
-              )}
-            </Response>
+            {isAssistantStreamingEmpty ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                <span>Thinking...</span>
+              </div>
+            ) : (
+              <Response>{content}</Response>
+            )}
           </MessageContent>
           {children}
         </Message>
@@ -117,6 +120,16 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
     const needsImmediateUpdate = () => {
       // Update immediately when streaming stops
       if (status !== 'streaming' && lastRawMessagesRef.current !== rawMessages) {
+        return true;
+      }
+
+      // Update immediately when a new assistant message appears (streaming starts)
+      const hasNewAssistantMessage = rawMessages.some(msg =>
+        msg.role === 'assistant' &&
+        !lastRawMessagesRef.current.some(oldMsg => oldMsg.id === msg.id)
+      );
+
+      if (hasNewAssistantMessage) {
         return true;
       }
 

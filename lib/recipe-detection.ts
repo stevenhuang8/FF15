@@ -99,7 +99,12 @@ export function isRecipeContent(content: string): boolean {
 export function getMessageTextContent(message: any): string {
   // Extract text from parts array
   const textParts = message.parts?.filter((p: any) => p.type === 'text') || [];
-  const textFromParts = textParts.map((part: any) => part.text).join('\n\n');
+
+  // Join parts with single newline and clean up excessive whitespace
+  const textFromParts = textParts
+    .map((part: any) => part.text?.trim() || '')
+    .filter((text: string) => text.length > 0)
+    .join('\n');
 
   // Fallback to legacy content field
   const legacyContent = message.content || '';

@@ -78,8 +78,11 @@ export function extractIngredients(text: string): RecipeIngredient[] {
     const line = lines[i].trim();
     const lowerLine = line.toLowerCase();
 
-    // Remove markdown formatting for comparison
-    const cleanedLine = lowerLine.replace(/[*_#]/g, '').trim();
+    // Remove markdown formatting AND bullet points for comparison
+    const cleanedLine = lowerLine
+      .replace(/[*_#]/g, '')      // Remove markdown formatting
+      .replace(/^[-•*]\s*/, '')   // Remove leading bullet points
+      .trim();
 
     // Start of ingredients section - flexible matching
     const isIngredientsHeader =
@@ -136,7 +139,10 @@ export function extractIngredients(text: string): RecipeIngredient[] {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       const lowerLine = line.toLowerCase();
-      const cleanedLine = lowerLine.replace(/[*_#]/g, '').trim();
+      const cleanedLine = lowerLine
+        .replace(/[*_#]/g, '')      // Remove markdown formatting
+        .replace(/^[-•*]\s*/, '')   // Remove leading bullet points
+        .trim();
 
       // Check if we hit the instructions section
       const isInstructionsStart =
@@ -258,8 +264,11 @@ export function extractInstructions(text: string): RecipeInstruction[] {
     const trimmed = line.trim();
     const lowerLine = trimmed.toLowerCase();
 
-    // Remove markdown formatting for comparison
-    const cleanedLine = lowerLine.replace(/[*_#]/g, '').trim();
+    // Remove markdown formatting AND bullet points for comparison
+    const cleanedLine = lowerLine
+      .replace(/[*_#]/g, '')      // Remove markdown formatting
+      .replace(/^[-•*]\s*/, '')   // Remove leading bullet points
+      .trim();
 
     // Start of instructions section - much more flexible matching
     const isInstructionsHeader =
@@ -280,7 +289,7 @@ export function extractInstructions(text: string): RecipeInstruction[] {
       cleanedLine.startsWith('preparation:');
 
     if (isInstructionsHeader) {
-      console.log(`📋 Found instructions header at line ${i}: "${trimmed}" (cleaned: "${cleanedLine}")`);
+      console.log(`📋 Found instructions header at line ${i}: "${cleanedLine}"`);
       inInstructionsSection = true;
       continue;
     }
@@ -292,12 +301,9 @@ export function extractInstructions(text: string): RecipeInstruction[] {
     }
 
     if (inInstructionsSection && trimmed.length > 0) {
-      console.log(`📋 Processing instruction line ${i} (${trimmed.length} chars):`, trimmed.substring(0, 50));
-
       // Handle numbered steps (e.g., "1. Mix ingredients")
       const numberedMatch = trimmed.match(/^\d+[\.)]\s*(.+)/);
       if (numberedMatch) {
-        console.log('📋 Found numbered step:', numberedMatch[1].substring(0, 50));
         instructions.push({
           step: stepNumber++,
           text: numberedMatch[1].trim(),
@@ -308,7 +314,6 @@ export function extractInstructions(text: string): RecipeInstruction[] {
       // Handle bulleted steps
       const bulletMatch = trimmed.match(/^[-*•]\s*(.+)/);
       if (bulletMatch) {
-        console.log('📋 Found bulleted step:', bulletMatch[1].substring(0, 50));
         instructions.push({
           step: stepNumber++,
           text: bulletMatch[1].trim(),
@@ -318,13 +323,10 @@ export function extractInstructions(text: string): RecipeInstruction[] {
 
       // Plain text instruction (if it's substantial)
       if (trimmed.length > 20) {
-        console.log('📋 Found plain text step:', trimmed.substring(0, 50));
         instructions.push({
           step: stepNumber++,
           text: trimmed,
         });
-      } else {
-        console.log(`📋 Skipping short line (${trimmed.length} chars)`);
       }
     }
   }

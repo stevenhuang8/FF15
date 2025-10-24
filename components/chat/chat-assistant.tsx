@@ -1,7 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type ToolUIPart } from "ai";
+import { DefaultChatTransport } from "ai";
 import { useState, useEffect, useRef, memo } from "react";
 import {
   createConversation,
@@ -12,7 +12,6 @@ import {
 import {
   Conversation,
   ConversationContent,
-  ConversationEmptyState,
 } from "@/components/ai-elements/conversation";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
@@ -28,18 +27,6 @@ import {
   SourcesContent,
   Source,
 } from "@/components/ai-elements/sources";
-import {
-  Tool,
-  ToolHeader,
-  ToolContent,
-  ToolInput,
-  ToolOutput,
-} from "@/components/ai-elements/tool";
-import {
-  Reasoning,
-  ReasoningTrigger,
-  ReasoningContent,
-} from "@/components/ai-elements/reasoning";
 import { Response } from "@/components/ai-elements/response";
 import { SaveRecipeButton } from "@/components/recipe/save-recipe-button";
 import { SaveWorkoutButton } from "@/components/workout/save-workout-button";
@@ -47,93 +34,11 @@ import { RecipeFromIngredientsButton } from "@/components/recipe/recipe-from-ing
 import { isRecipeContent, getMessageTextContent } from "@/lib/recipe-detection";
 import { isWorkoutContent } from "@/lib/workout-detection";
 
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  sources?: Array<{
-    url: string;
-    title?: string;
-  }>;
-  toolCalls?: Array<{
-    type: `tool-${string}`;
-    state:
-      | "input-streaming"
-      | "input-available"
-      | "output-available"
-      | "output-error";
-    input?: any;
-    output?: any;
-    errorText?: string;
-  }>;
-};
-
-// RAG Tool types for proper TypeScript support
-type RAGToolInput = {
-  query: string;
-};
-
-type RAGToolOutput = {
-  context: string;
-  sources: Array<{
-    sourceType: 'url';
-    id: string;
-    url: string;
-    title: string;
-  }>;
-  chatSources?: Array<{
-    url: string;
-    title: string;
-  }>;
-};
-
-type RAGToolUIPart = ToolUIPart<{
-  retrieveKnowledgeBase: {
-    input: RAGToolInput;
-    output: RAGToolOutput;
-  };
-}>;
-
 interface ChatAssistantProps {
   api?: string;
 }
 
 // Memoized components for better performance
-const MemoizedToolCall = memo(({
-  toolPart,
-  displayName,
-  shouldBeExpanded
-}: {
-  toolPart: RAGToolUIPart;
-  displayName: string;
-  shouldBeExpanded: boolean;
-}) => (
-  <Tool defaultOpen={shouldBeExpanded}>
-    <ToolHeader
-      type={displayName as any}
-      state={toolPart.state}
-    />
-    <ToolContent>
-      {toolPart.state === "input-streaming" && (
-        <div className="text-sm text-muted-foreground p-2">
-          🔍 {displayName}...
-        </div>
-      )}
-      {toolPart.input && toolPart.state !== "input-streaming" && (
-        <ToolInput input={toolPart.input} />
-      )}
-      {toolPart.output && (
-        <ToolOutput
-          output={toolPart.output}
-          errorText={toolPart.errorText}
-        />
-      )}
-    </ToolContent>
-  </Tool>
-));
-
-MemoizedToolCall.displayName = 'MemoizedToolCall';
-
 const MemoizedMessage = memo(({
   message,
   isStreaming,
@@ -145,15 +50,23 @@ const MemoizedMessage = memo(({
 }) => {
   // Only handle text parts (reasoning is now handled as separate flow items)
   const textParts = message.parts?.filter((p: any) => p.type === 'text') || [];
+  const content = textParts.map((part: any, i: number) => part.text).join('') || message.content || "";
+
+  // Check if assistant is streaming with no content yet
+  const isAssistantStreamingEmpty = message.role === 'assistant' && isStreaming && !content;
 
   return (
     <>
-      {/* Render text message if there's content */}
-      {(textParts.length > 0 || message.content) && (
+      {/* Render text message if there's content OR if assistant is streaming (show placeholder) */}
+      {(textParts.length > 0 || message.content || isAssistantStreamingEmpty) && (
         <Message from={message.role}>
           <MessageContent>
             <Response>
-              {textParts.map((part: any, i: number) => part.text).join('') || message.content || ""}
+              {isAssistantStreamingEmpty ? (
+                <span className="text-muted-foreground animate-pulse">...</span>
+              ) : (
+                content
+              )}
             </Response>
           </MessageContent>
           {children}
@@ -508,58 +421,35 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
               <div className="text-muted-foreground">Loading conversation...</div>
             </div>
           ) : messages.length === 0 ? (
-            <ConversationEmptyState
-              title="Start a conversation"
-              description="Ask me anything and I'll help you out!"
-            />
+            <Message from="assistant">
+              <MessageContent>
+                <Response>
+                  Hi! I'm your personal cooking, nutrition, and fitness assistant. I can help you with:
+
+                  - **Recipe recommendations** and cooking guidance
+                  - **Nutritional information** and meal planning
+                  - **Workout routines** and fitness advice
+                  - **Ingredient substitutions** and dietary adjustments
+
+                  What would you like to know?
+                </Response>
+              </MessageContent>
+            </Message>
           ) : (
             (() => {
-              // Tool display name mapping
-              const toolDisplayNames: Record<string, string> = {
-                'tool-retrieveKnowledgeBase': 'Knowledge Base Search',
-                // Add more tool mappings as needed
-              };
-
-              // Extract flow items (messages + tool calls + reasoning) in chronological order
+              // Extract flow items (messages only - tool calls and reasoning are hidden)
               const flowItems: Array<{
-                type: 'message' | 'tool-call' | 'reasoning';
+                type: 'message';
                 data: any;
                 id: string;
-                messageId?: string;
-                displayName?: string;
-                partIndex?: number;
               }> = [];
 
               messages.forEach((message) => {
                 // Process all parts in chronological order
                 const parts = (message as any).parts || [];
 
-                parts.forEach((part: any, partIndex: number) => {
-                  if (part.type?.startsWith('tool-')) {
-                    // Handle tool calls - always include message ID for uniqueness
-                    const toolCallId = part.toolCallId || part.id || `${part.type}-${partIndex}`;
-                    const uniqueId = `${message.id}-${toolCallId}`;
-
-                    flowItems.push({
-                      type: 'tool-call',
-                      data: part,
-                      id: `tool-${uniqueId}`,
-                      messageId: message.id,
-                      displayName: toolDisplayNames[part.type] || part.type,
-                      partIndex
-                    });
-                  } else if (part.type === 'reasoning') {
-                    // Handle reasoning parts
-                    flowItems.push({
-                      type: 'reasoning',
-                      data: part,
-                      id: `reasoning-${message.id}-${partIndex}`,
-                      messageId: message.id,
-                      partIndex
-                    });
-                  }
-                  // text parts will be handled in the message itself
-                });
+                // Skip tool and reasoning parts - only process text parts
+                // parts.forEach block removed to hide tool calls and reasoning from UI
 
                 // Add the message itself (with only text parts and legacy content)
                 const messageWithTextOnly = {
@@ -569,9 +459,11 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
                   )
                 };
 
-                // Only add message if it has content (text or legacy content)
+                // Add message if it has content OR if it's an assistant message during streaming (for placeholder)
                 const hasContent = messageWithTextOnly.parts.length > 0 || !!(message as any).content;
-                if (hasContent) {
+                const isStreamingAssistant = message.role === 'assistant' && isLoading;
+
+                if (hasContent || isStreamingAssistant) {
                   flowItems.push({
                     type: 'message',
                     data: messageWithTextOnly,
@@ -588,38 +480,8 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
               }
 
               return flowItems.map((item, itemIndex) => {
-                if (item.type === 'tool-call') {
-                  // Render tool call status block
-                  const toolPart = item.data as RAGToolUIPart;
-
-                  // Tools are collapsed by default
-                  const shouldBeExpanded = false;
-
-                  return (
-                    <div key={item.id} className="w-full mb-4">
-                      <MemoizedToolCall
-                        toolPart={toolPart}
-                        displayName={item.displayName || toolPart.type}
-                        shouldBeExpanded={shouldBeExpanded}
-                      />
-                    </div>
-                  );
-                } else if (item.type === 'reasoning') {
-                  // Render reasoning block
-                  const reasoningPart = item.data;
-
-                  return (
-                    <div key={item.id} className="w-full mb-4">
-                      <Reasoning
-                        isStreaming={isLoading}
-                        className="mb-4"
-                      >
-                        <ReasoningTrigger />
-                        <ReasoningContent>{reasoningPart.text || ''}</ReasoningContent>
-                      </Reasoning>
-                    </div>
-                  );
-                } else {
+                // Only render messages (tool-call and reasoning rendering removed)
+                if (item.type === 'message') {
                   // Render regular message
                   const message = item.data;
 
@@ -636,18 +498,20 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
                           return null;
                         }
 
-                        // Look backward through flow items for recent tool results
+                        // Extract sources directly from the original message parts
+                        // Look for retrieveKnowledgeBase tool calls in this message
                         let toolSources: any[] = [];
 
-                        for (let i = itemIndex - 1; i >= 0; i--) {
-                          const prevItem = flowItems[i];
-                          if (prevItem.type === 'tool-call') {
-                            const toolData = prevItem.data as RAGToolUIPart;
-                            if (toolData.type === 'tool-retrieveKnowledgeBase' && toolData.output?.sources) {
-                              toolSources = toolData.output.sources;
-                              break;
-                            }
-                          }
+                        // Get the original message from messages array (not the filtered one)
+                        const originalMessage = messages.find(m => m.id === message.id);
+                        const allParts = (originalMessage as any)?.parts || [];
+
+                        const ragToolCalls = allParts.filter(
+                          (part: any) => part.type === 'tool-retrieveKnowledgeBase' && part.output?.sources
+                        );
+
+                        if (ragToolCalls.length > 0) {
+                          toolSources = ragToolCalls.flatMap((tool: any) => tool.output?.sources || []);
                         }
 
                         if (toolSources.length > 0) {
@@ -704,6 +568,8 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
                     </div>
                   );
                 }
+                // Return null for non-message types (shouldn't happen now, but defensive)
+                return null;
               });
             })()
           )}

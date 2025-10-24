@@ -310,9 +310,9 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
       // Save each unsaved message
       for (const msg of unsavedMessages) {
         // Extract text content from multiple part types
-        // GPT-5 puts content in both 'text' and 'reasoning' parts
+        // Only save 'text' parts, not reasoning tokens
         const textParts = (msg as any).parts?.filter((p: any) =>
-          p.type === 'text' || p.type === 'reasoning'
+          p.type === 'text'
         ) || [];
         let content = textParts.map((part: any) => part.text).join('\n\n') || (msg as any).content || '';
 

@@ -202,6 +202,9 @@ export function HealthMetricsForm({
     setSubmitSuccess(false)
 
     try {
+      // Create Supabase client for authenticated operations
+      const supabase = createClient()
+
       // Convert string values to numbers
       const metricsData = {
         userId,
@@ -218,7 +221,7 @@ export function HealthMetricsForm({
         notes: formData.notes,
       }
 
-      const { error } = await logHealthMetrics(metricsData)
+      const { error } = await logHealthMetrics(supabase, metricsData)
 
       if (error) {
         console.error('Failed to log health metrics:', error)
@@ -228,7 +231,6 @@ export function HealthMetricsForm({
       // Auto-sync weight-based goals if weight was logged
       if (metricsData.weight) {
         const { syncGoalProgress, checkGoalAchievement } = await import('@/lib/supabase/goal-sync')
-        const supabase = createClient()
 
         console.log('🔄 Syncing goals with new weight:', metricsData.weight)
 

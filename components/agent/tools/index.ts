@@ -25,6 +25,9 @@ export { logMealPreview, confirmMealLog } from './log-meal';
 // Workout logging tools
 export { logWorkoutPreview, confirmWorkoutLog } from './log-workout';
 
+// Health metrics logging tools
+export { logHealthMetricsPreview, confirmHealthMetricsLog } from './log-health-metrics';
+
 // Pantry management tools
 export { addPantryItemPreview, confirmAddPantryItem } from './add-pantry-item';
 

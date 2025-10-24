@@ -5,6 +5,7 @@
  */
 
 import { createClient } from '@/lib/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { TablesInsert, TablesUpdate, Tables } from '@/types/supabase';
 
 // ============================================================================
@@ -13,20 +14,24 @@ import type { TablesInsert, TablesUpdate, Tables } from '@/types/supabase';
 
 /**
  * Log health metrics for a specific date
+ * @param supabase - Supabase client (pass server client for authenticated operations)
+ * @param params - Health metrics data
  */
-export async function logHealthMetrics(params: {
-  userId: string;
-  date: string; // ISO date string (YYYY-MM-DD)
-  weight?: number;
-  bodyFatPercentage?: number;
-  waist?: number;
-  chest?: number;
-  hips?: number;
-  arms?: number;
-  thighs?: number;
-  notes?: string;
-}) {
-  const supabase = createClient();
+export async function logHealthMetrics(
+  supabase: SupabaseClient,
+  params: {
+    userId: string;
+    date: string; // ISO date string (YYYY-MM-DD)
+    weight?: number;
+    bodyFatPercentage?: number;
+    waist?: number;
+    chest?: number;
+    hips?: number;
+    arms?: number;
+    thighs?: number;
+    notes?: string;
+  }
+) {
 
   try {
     const metricsData: TablesInsert<'health_metrics'> = {

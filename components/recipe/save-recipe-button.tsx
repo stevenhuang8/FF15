@@ -6,6 +6,7 @@ import { useState } from "react";
 import { extractRecipe, validateRecipe } from "@/lib/recipe-extraction";
 import { saveRecipe } from "@/lib/supabase/recipes";
 import { createClient } from "@/lib/supabase/client";
+import { isValidUUID } from "@/lib/utils";
 
 interface SaveRecipeButtonProps {
   messageId: string;
@@ -71,8 +72,8 @@ export function SaveRecipeButton({
       const { data, error: saveError } = await saveRecipe({
         recipe: extractedRecipe,
         userId: user.id,
-        conversationId,
-        messageId,
+        conversationId: isValidUUID(conversationId) ? conversationId : undefined,
+        messageId: isValidUUID(messageId) ? messageId : undefined,
       });
 
       if (saveError) {

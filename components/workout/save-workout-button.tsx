@@ -6,6 +6,7 @@ import { useState } from "react";
 import { extractWorkout, validateWorkout } from "@/lib/workout-extraction";
 import { saveWorkout } from "@/lib/supabase/workouts";
 import { createClient } from "@/lib/supabase/client";
+import { isValidUUID } from "@/lib/utils";
 
 interface SaveWorkoutButtonProps {
   messageId: string;
@@ -71,8 +72,8 @@ export function SaveWorkoutButton({
       const { data, error: saveError } = await saveWorkout({
         workout: extractedWorkout,
         userId: user.id,
-        conversationId,
-        messageId,
+        conversationId: isValidUUID(conversationId) ? conversationId : undefined,
+        messageId: isValidUUID(messageId) ? messageId : undefined,
       });
 
       if (saveError) {

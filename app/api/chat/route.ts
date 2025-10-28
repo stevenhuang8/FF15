@@ -4,6 +4,7 @@ import {
   retrieveKnowledgeBaseSimple,
   recommendWorkout,
   generateRecipeFromIngredients,
+  searchFoodNutrition,
   // Meal logging tools
   logMealPreview,
   confirmMealLog,
@@ -149,7 +150,9 @@ export async function POST(request: NextRequest) {
       },
 
       // All tools available to the agent
-      // The orchestrator prompt guides which tools to use for different queries
+      // The orchestrator uses prompt engineering to simulate specialized subagents
+      // Subagent definitions in /components/agent/subagents/ provide documentation
+      // for future migration to Claude's Agent SDK when available in Vercel AI SDK
       tools: {
         // RAG knowledge base
         retrieveKnowledgeBase: retrieveKnowledgeBaseSimple,
@@ -167,6 +170,7 @@ export async function POST(request: NextRequest) {
         suggestSubstitution,
         recommendWorkout,
         generateRecipeFromIngredients,
+        searchFoodNutrition,
 
         // Meal logging (two-step preview/confirm pattern)
         logMealPreview,

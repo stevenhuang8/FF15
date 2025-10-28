@@ -96,13 +96,13 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
   const timezoneOffset = new Date().getTimezoneOffset();
 
   const { messages: rawMessages, status, sendMessage, setMessages } = useChat({
-    transport: api ? new DefaultChatTransport({
-      api,
+    transport: new DefaultChatTransport({
+      api: api || '/api/chat', // Default to /api/chat if no custom api provided
       headers: {
         'X-User-Timezone': userTimezone,
         'X-User-Timezone-Offset': String(timezoneOffset),
       }
-    }) : undefined,
+    }),
   });
 
   // Debounced messages for performance - update every 30ms instead of every token

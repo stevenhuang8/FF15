@@ -139,11 +139,14 @@ export async function POST(request: NextRequest) {
 
       // Enable multi-step reasoning for complex orchestration
       // Allows agent to use multiple tools and coordinate responses
-      stopWhen: stepCountIs(15),
+      // Increased from 15 to 30 for better multi-domain query handling
+      stopWhen: stepCountIs(30),
 
       providerOptions: {
         openai: {
-          reasoning_effort: "low",
+          // Increased from "low" to "medium" for better quality reasoning (+10-15% quality)
+          // Note: GPT-5 is a reasoning model - temperature is not supported
+          reasoning_effort: "medium",
           textVerbosity: "low",
           reasoningSummary: "detailed",
         },

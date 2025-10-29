@@ -33,7 +33,16 @@ import { SaveWorkoutButton } from "@/components/workout/save-workout-button";
 import { RecipeFromIngredientsButton } from "@/components/recipe/recipe-from-ingredients-button";
 import { isRecipeContent, getMessageTextContent } from "@/lib/recipe-detection";
 import { isWorkoutContent } from "@/lib/workout-detection";
-import { Loader2 } from "lucide-react";
+import { Loader2, ImagePlus, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  convertFilesToDataURLs,
+  validateImageFiles,
+  getFilePreviewURL,
+  formatFileSize,
+  convertHEICToJPEG,
+  isHEICFile,
+} from "@/lib/file-conversion";
 
 interface ChatAssistantProps {
   api?: string;
@@ -49,28 +58,50 @@ const MemoizedMessage = memo(({
   isStreaming: boolean;
   children?: React.ReactNode;
 }) => {
-  // Only handle text parts (reasoning is now handled as separate flow items)
+  // Handle text parts
   const textParts = message.parts?.filter((p: any) => p.type === 'text') || [];
   const content = textParts.map((part: any, i: number) => part.text).join('') || message.content || "";
 
+  // Handle image/file parts
+  const fileParts = message.parts?.filter((p: any) =>
+    p.type === 'file' && p.mediaType?.startsWith('image/')
+  ) || [];
+
   // Check if assistant is streaming with no content yet
-  // Use trim() to check for actual text content, not just whitespace or empty strings
   const isAssistantStreamingEmpty = message.role === 'assistant' && isStreaming && !content.trim();
+
+  // Show message if there's text content, images, or streaming placeholder
+  const hasContent = content.trim() || fileParts.length > 0;
 
   return (
     <>
-      {/* Render text message if there's content OR if assistant is streaming (show placeholder) */}
-      {(content.trim() || isAssistantStreamingEmpty) && (
+      {(hasContent || isAssistantStreamingEmpty) && (
         <Message from={message.role}>
           <MessageContent>
+            {/* Render images first if they exist */}
+            {fileParts.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {fileParts.map((part: any, i: number) => (
+                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border">
+                    <img
+                      src={part.url}
+                      alt={`Uploaded image ${i + 1}`}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Render text content */}
             {isAssistantStreamingEmpty ? (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
                 <span>Thinking...</span>
               </div>
-            ) : (
+            ) : content.trim() ? (
               <Response>{content}</Response>
-            )}
+            ) : null}
           </MessageContent>
           {children}
         </Message>
@@ -90,6 +121,10 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
   const [input, setInput] = useState("");
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId || null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<{ file: File; url: string }[]>([]);
+  const [isConvertingHEIC, setIsConvertingHEIC] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get user's timezone to send with every request
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -407,11 +442,84 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
     }
   };
 
+  // Handle file selection
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    try {
+      // Check if any files are HEIC
+      const hasHEIC = files.some(isHEICFile);
+
+      if (hasHEIC) {
+        setIsConvertingHEIC(true);
+      }
+
+      // Convert HEIC files to JPEG (other files pass through unchanged)
+      const processedFiles = await Promise.all(
+        files.map(async (file) => {
+          if (isHEICFile(file)) {
+            return await convertHEICToJPEG(file);
+          }
+          return file;
+        })
+      );
+
+      setIsConvertingHEIC(false);
+
+      // Validate processed files
+      const validation = validateImageFiles(processedFiles);
+      if (!validation.valid) {
+        alert(validation.error);
+        return;
+      }
+
+      // Add to selected files
+      setSelectedFiles(prev => [...prev, ...processedFiles]);
+
+      // Generate previews
+      const newPreviews = await Promise.all(
+        processedFiles.map(async (file) => ({
+          file,
+          url: await getFilePreviewURL(file),
+        }))
+      );
+      setFilePreviews(prev => [...prev, ...newPreviews]);
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      setIsConvertingHEIC(false);
+      console.error('File processing error:', error);
+      alert(
+        `Failed to process image: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  };
+
+  // Remove a selected file
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setFilePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Clear all files
+  const clearFiles = () => {
+    setSelectedFiles([]);
+    setFilePreviews([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (
     message: { text?: string; files?: any[] },
     event: React.FormEvent
   ) => {
-    if (!message.text?.trim() || status === "streaming") return;
+    // Require either text or files
+    if ((!message.text?.trim() && selectedFiles.length === 0) || status === "streaming") return;
 
     // Clear the form immediately after extracting the message
     const form = (event.target as Element)?.closest("form") as HTMLFormElement;
@@ -419,7 +527,26 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
       form.reset();
     }
 
-    sendMessage({ text: message.text });
+    // Convert files to data URLs for multimodal messages
+    if (selectedFiles.length > 0) {
+      const fileParts = await convertFilesToDataURLs(selectedFiles);
+
+      // Send message with both text and files
+      sendMessage({
+        role: 'user',
+        parts: [
+          ...(message.text?.trim() ? [{ type: 'text', text: message.text }] : []),
+          ...fileParts,
+        ],
+      } as any);
+
+      // Clear files after sending
+      clearFiles();
+    } else if (message.text?.trim()) {
+      // Text-only message (existing behavior)
+      sendMessage({ text: message.text });
+    }
+
     setInput("");
   };
 
@@ -590,10 +717,66 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
       </Conversation>
 
       <div className="p-4 flex-shrink-0">
+        {/* HEIC conversion indicator */}
+        {isConvertingHEIC && (
+          <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Converting HEIC images to JPEG...</span>
+          </div>
+        )}
+
+        {/* File preview thumbnails */}
+        {filePreviews.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {filePreviews.map((preview, index) => (
+              <div key={index} className="relative group">
+                <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                  <img
+                    src={preview.url}
+                    alt={preview.file.name}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                </div>
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => handleRemoveFile(index)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+                <div className="text-xs text-muted-foreground mt-1 truncate w-20">
+                  {formatFileSize(preview.file.size)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <PromptInput onSubmit={handleSubmit}>
           <PromptInputBody>
             <PromptInputTextarea placeholder="What would you like to know?" />
             <PromptInputToolbar>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.heic,.heif"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              {/* Image upload button */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                title="Upload images"
+              >
+                <ImagePlus className="h-4 w-4" />
+              </Button>
               <RecipeFromIngredientsButton
                 onGenerateRecipe={(message) => {
                   sendMessage({ text: message });

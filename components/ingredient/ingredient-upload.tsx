@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import type { IngredientExtractionResponse } from '@/types/ingredient'
+import { convertHEICToJPEG, isHEICFile } from '@/lib/file-conversion'
 
 interface IngredientUploadProps {
   onUploadComplete?: (result: UploadResult) => void
@@ -33,6 +34,7 @@ export function IngredientUpload({
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null)
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractionResult, setExtractionResult] = useState<IngredientExtractionResponse | null>(null)
+  const [isConvertingHEIC, setIsConvertingHEIC] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -55,9 +57,9 @@ export function IngredientUpload({
 
   const validateFile = (file: File): string | null => {
     // Check file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
     if (!validTypes.includes(file.type)) {
-      return 'Please upload a JPEG, PNG, or WebP image'
+      return 'Please upload a JPEG, PNG, WebP, or HEIC image'
     }
 
     // Check file size
@@ -69,24 +71,39 @@ export function IngredientUpload({
     return null
   }
 
-  const handleFile = useCallback((selectedFile: File) => {
-    // Validate file
-    const validationError = validateFile(selectedFile)
-    if (validationError) {
-      setError(validationError)
-      return
-    }
+  const handleFile = useCallback(async (selectedFile: File) => {
+    try {
+      // Check if HEIC and convert if needed
+      let processedFile = selectedFile
+      if (isHEICFile(selectedFile)) {
+        setIsConvertingHEIC(true)
+        setError(null)
+        processedFile = await convertHEICToJPEG(selectedFile)
+        setIsConvertingHEIC(false)
+      }
 
-    setError(null)
-    setFile(selectedFile)
-    setUploadResult(null)
+      // Validate file
+      const validationError = validateFile(processedFile)
+      if (validationError) {
+        setError(validationError)
+        return
+      }
 
-    // Create preview
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setPreview(reader.result as string)
+      setError(null)
+      setFile(processedFile)
+      setUploadResult(null)
+
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPreview(reader.result as string)
+      }
+      reader.readAsDataURL(processedFile)
+    } catch (error) {
+      setIsConvertingHEIC(false)
+      setError(error instanceof Error ? error.message : 'Failed to process image')
+      console.error('Error processing file:', error)
     }
-    reader.readAsDataURL(selectedFile)
   }, [maxSizeMB])
 
   const handleDrop = useCallback(
@@ -235,13 +252,13 @@ export function IngredientUpload({
                 Drag and drop an image here, or click to browse
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                JPEG, PNG, or WebP (max {maxSizeMB}MB)
+                JPEG, PNG, WebP, or HEIC (max {maxSizeMB}MB)
               </p>
             </div>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/jpg,image/png,image/webp"
+              accept="image/*,.heic,.heif"
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -271,6 +288,13 @@ export function IngredientUpload({
                 </div>
               </div>
             </div>
+
+            {isConvertingHEIC && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Converting HEIC to JPEG...</span>
+              </div>
+            )}
 
             {isUploading && (
               <div className="space-y-2">

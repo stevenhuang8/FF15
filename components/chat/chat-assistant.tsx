@@ -553,8 +553,10 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
   const isLoading = status === "streaming";
 
   return (
-    <div className="flex flex-col h-full max-h-full overflow-hidden">
-      <Conversation className="flex-1 h-0 overflow-hidden">
+    <div className="flex flex-row h-full max-h-full overflow-hidden">
+      {/* Left: Chat + Input Area */}
+      <div className="flex flex-col flex-1 h-full min-w-0">
+        <Conversation className="flex-1 h-0 overflow-hidden">
         <ConversationContent className="space-y-4">
           {isLoadingHistory ? (
             <div className="flex items-center justify-center h-full">
@@ -725,9 +727,9 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
           </div>
         )}
 
-        {/* File preview thumbnails */}
+        {/* File preview thumbnails - Mobile only */}
         {filePreviews.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-2">
+          <div className="md:hidden mb-3 flex flex-wrap gap-2">
             {filePreviews.map((preview, index) => (
               <div key={index} className="relative group">
                 <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
@@ -766,7 +768,15 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
                 onChange={handleFileSelect}
                 className="hidden"
               />
-              {/* Image upload button */}
+              {/* 1. Recipe button (LEFT) */}
+              <RecipeFromIngredientsButton
+                onGenerateRecipe={(message) => {
+                  sendMessage({ text: message });
+                }}
+                variant="ghost"
+                iconOnly
+              />
+              {/* 2. Image upload button (MIDDLE) */}
               <Button
                 type="button"
                 variant="ghost"
@@ -777,18 +787,44 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
               >
                 <ImagePlus className="h-4 w-4" />
               </Button>
-              <RecipeFromIngredientsButton
-                onGenerateRecipe={(message) => {
-                  sendMessage({ text: message });
-                }}
-                variant="ghost"
-                iconOnly
-              />
+              {/* 3. Send button (RIGHT) */}
               <PromptInputSubmit status={isLoading ? "submitted" : undefined} />
             </PromptInputToolbar>
           </PromptInputBody>
         </PromptInput>
       </div>
+    </div>
+
+      {/* Right: Image Sidebar (Desktop only) */}
+      {filePreviews.length > 0 && (
+        <div className="hidden md:flex flex-col w-40 border-l bg-muted/30 p-3 gap-2 overflow-y-auto">
+          <div className="text-xs font-medium text-muted-foreground mb-1">
+            Selected Images ({filePreviews.length})
+          </div>
+          {filePreviews.map((preview, index) => (
+            <div key={`sidebar-${index}`} className="relative group">
+              <div className="relative w-full aspect-square rounded-lg overflow-hidden border bg-background">
+                <img
+                  src={preview.url}
+                  alt={preview.file.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              </div>
+              <Button
+                size="icon"
+                variant="destructive"
+                className="absolute -top-1 -right-1 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => handleRemoveFile(index)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+              <div className="text-xs text-muted-foreground mt-1 truncate">
+                {formatFileSize(preview.file.size)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

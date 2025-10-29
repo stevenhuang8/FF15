@@ -44,6 +44,21 @@ import {
   isHEICFile,
 } from "@/lib/file-conversion";
 
+// Starter message shown at the beginning of every conversation
+const STARTER_MESSAGE_TEXT = "Hi! I'm your personal cooking, nutrition, and fitness assistant. I can help you with:\n\n- **Recipe recommendations** and cooking guidance\n- **Nutritional information** and meal planning\n- **Workout routines** and fitness advice\n- **Ingredient substitutions** and dietary adjustments\n\nWhat would you like to know?";
+
+const createStarterMessage = () => ({
+  id: 'starter-message',
+  role: 'assistant' as const,
+  content: STARTER_MESSAGE_TEXT,
+  parts: [
+    {
+      type: 'text',
+      text: STARTER_MESSAGE_TEXT
+    }
+  ]
+});
+
 interface ChatAssistantProps {
   api?: string;
 }
@@ -140,6 +155,7 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
     }),
   });
 
+
   // Debounced messages for performance - update every 30ms instead of every token
   const [debouncedMessages, setDebouncedMessages] = useState(rawMessages);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -220,9 +236,11 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
       }
 
       if (!conversationId) {
-        // New conversation - clear messages
-        setMessages([]);
+        // New conversation - reset to starter message only
+        setMessages([createStarterMessage() as any]);
         setCurrentConversationId(null);
+        savedMessageIdsRef.current.clear();
+        savedMessageIdsRef.current.add('starter-message');
         return;
       }
 
@@ -265,15 +283,17 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
             };
           });
 
-          setMessages(uiMessages as any);
+          // Prepend starter message to loaded conversation
+          setMessages([createStarterMessage(), ...uiMessages] as any);
           setCurrentConversationId(conversationId);
 
-          // Mark all loaded messages as saved
+          // Mark all loaded messages as saved (including starter)
+          savedMessageIdsRef.current.add('starter-message');
           uiMessages.forEach(msg => {
             savedMessageIdsRef.current.add(msg.id);
           });
 
-          console.log(`✅ Loaded conversation with ${uiMessages.length} messages`);
+          console.log(`✅ Loaded conversation with ${uiMessages.length + 1} messages (including starter)`);
         }
       } catch (error) {
         console.error('Failed to load conversation history:', error);
@@ -562,21 +582,6 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
             <div className="flex items-center justify-center h-full">
               <div className="text-muted-foreground">Loading conversation...</div>
             </div>
-          ) : messages.length === 0 ? (
-            <Message from="assistant">
-              <MessageContent>
-                <Response>
-                  Hi! I'm your personal cooking, nutrition, and fitness assistant. I can help you with:
-
-                  - **Recipe recommendations** and cooking guidance
-                  - **Nutritional information** and meal planning
-                  - **Workout routines** and fitness advice
-                  - **Ingredient substitutions** and dietary adjustments
-
-                  What would you like to know?
-                </Response>
-              </MessageContent>
-            </Message>
           ) : (
             (() => {
               // Extract flow items (messages only - tool calls and reasoning are hidden)

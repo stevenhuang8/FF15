@@ -4,20 +4,20 @@ A comprehensive AI platform for cooking, nutrition tracking, meal planning, and 
 
 ## Features
 
-- **AI Conversational Interface**: Multi-agent orchestration with 8 specialized subagents, streaming responses, RAG integration, and conversation persistence
+- **AI Conversational Interface**: Multi-agent orchestration with 8 specialized subagents, streaming responses, RAG integration, conversation persistence, and **GPT-4 Vision** for analyzing meal and ingredient photos
 - **Recipe Management**: AI-assisted recipe creation, extraction from chat, library with filtering, nutrition breakdown, pantry-based generation, and ingredient substitutions
-- **Nutrition Tracking**: Meal logging with USDA database, AI nutrition estimation, daily calorie/macro tracking, customizable targets, and analytics dashboard
+- **Nutrition Tracking**: Meal logging with USDA database, AI nutrition estimation, **image-based meal logging** (send a photo, AI identifies food and logs it), daily calorie/macro tracking, customizable targets, and analytics dashboard
 - **Fitness & Workout Tracking**: AI workout planning, exercise database (100+), workout logging, progress analytics, and streak tracking
-- **Pantry Management**: Ingredient inventory, expiration tracking, AI recipe suggestions based on available items
+- **Pantry Management**: Ingredient inventory, expiration tracking, **AI-powered ingredient extraction** from photos (receipts, packaging, ingredient photos), and AI recipe suggestions based on available items
 - **User Profile**: Authentication, dietary restrictions, allergies, fitness goals, health metrics logging
 
 ## Tech Stack
 
 **Frontend**: Next.js 15, TypeScript 5, shadcn/ui, Tailwind CSS v4, React Hook Form, Framer Motion, Recharts, AI Elements
 
-**Backend**: Next.js API Routes, OpenAI GPT-5 (AI SDK 5), Supabase Auth & PostgreSQL, Vectorize RAG, USDA Food Database, MCP Integration
+**Backend**: Next.js API Routes, OpenAI GPT-5 (AI SDK 5), GPT-4 Vision for image analysis, Supabase Auth & PostgreSQL, Vectorize RAG, USDA Food Database, MCP Integration
 
-**Key Technologies**: AI SDK `streamText()`, multi-step tool execution with `stopWhen(stepCountIs(15))`, Row Level Security (RLS), JSONB for dynamic data
+**Key Technologies**: AI SDK `streamText()` and `generateObject()`, multi-step tool execution with `stopWhen(stepCountIs(15))`, vision-powered meal logging and ingredient extraction, Row Level Security (RLS), JSONB for dynamic data
 
 ## Multi-Agent Architecture
 
@@ -38,6 +38,37 @@ The main orchestrator coordinates 8 specialized subagents with 23 AI tools:
 - **Data Logging** (Preview + Confirm): Meal, workout, health metrics, pantry items
 - **Profile Management** (Preview + Confirm): Dietary preferences, allergies, fitness goals
 - **Generation**: `recommendWorkout`, `generateRecipeFromIngredients`, `suggestSubstitution`, `createFitnessGoal`
+
+## AI-Powered Image Extraction
+
+FF Coach leverages **GPT-4 Vision** for intelligent image analysis in two key workflows:
+
+### Meal Logging from Photos
+**How it works:**
+1. User sends a photo of their meal to the AI agent
+2. Agent analyzes the image to identify food items, portion sizes, and meal type
+3. Agent uses `logMealPreview` tool with extracted data to calculate nutrition
+4. User confirms and the meal is logged with full nutritional breakdown
+
+**Example:** User sends a breakfast photo → Agent: "I can see scrambled eggs, toast, and bacon. Let me calculate the nutrition... [displays preview] Should I log this for breakfast?"
+
+### Ingredient Extraction from Receipts/Packaging
+**How it works:**
+1. User uploads an image (receipt, food packaging, ingredient photo)
+2. Dedicated `/api/extract-ingredients` endpoint uses GPT-4o to parse the image
+3. AI extracts ingredient names, quantities, units, and confidence scores
+4. Structured data returned with image type detection and warnings
+
+**Features:**
+- Automatic unit normalization (e.g., "tomatoe" → "tomato")
+- Confidence scoring per ingredient (0-1 scale)
+- HEIC to JPEG conversion support
+- Graceful degradation (extraction failure doesn't break upload)
+
+**Implementation:**
+- API: `/app/api/extract-ingredients/route.ts` using AI SDK `generateObject()`
+- Component: `IngredientUpload` in `/components/ingredient/ingredient-upload.tsx`
+- Storage: Supabase Storage with automatic signed URLs
 
 ## Setup
 

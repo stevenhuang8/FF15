@@ -18,6 +18,7 @@
 3. **Chat history UI issues** (Issue #3) - Styling and responsiveness
 4. **Chat UI/conversation interface issues** (Issue #4) - Message formatting and mobile UX
 5. **Recipe instruction parsing issues** (Issue #5) - Recommend AI SDK `generateObject` approach
+6. **Photo upload not working in mobile web browser** (Issue #11) - Mobile UX issue
 
 ### 📋 Feature Requests & Architectural Plans
 - Multi-agent architecture ✅ IMPLEMENTED
@@ -289,6 +290,36 @@ Database error: {
 - May involve form state management issues
 
 **Status**: ✅ FIXED - Food item input now properly accepts user input.
+
+---
+
+### 11. Photo Upload Not Working in Mobile Web Browser
+
+**Issue**: Users cannot upload photos to the chat interface when using a mobile web browser.
+
+**Impact**: Mobile users cannot share images (recipes, food photos, workout screenshots) with the AI assistant, limiting functionality on mobile devices.
+
+**Specific Problems**:
+- Photo upload button/input may not trigger on mobile browsers
+- File picker may not open or may not accept image files
+- Uploaded images may not be properly transmitted to the backend
+- Mobile browser compatibility issues (iOS Safari, Chrome mobile, etc.)
+- Touch event handling may differ from desktop click events
+
+**Related Files**:
+- `/components/chat/chat-assistant.tsx` - Main chat interface with file upload
+- Chat input component (needs identification)
+- Image upload handling in chat API route
+
+**Potential Solutions**:
+- Test file input element on various mobile browsers
+- Ensure proper `accept` attribute for image files
+- Check touch event handlers vs click handlers
+- Test on iOS Safari, Chrome mobile, Firefox mobile
+- Consider using a mobile-optimized file picker component
+- Add proper error handling and user feedback for failed uploads
+
+**Status**: ❌ OUTSTANDING - Needs investigation and fix.
 
 ---
 

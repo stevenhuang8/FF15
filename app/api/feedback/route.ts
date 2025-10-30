@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { uploadFeedbackAttachment } from '@/lib/supabase/storage'
 import { feedbackSchema } from '@/components/feedback/feedback-schema'
+import { sendFeedbackNotification, sendFeedbackConfirmation } from '@/lib/email/resend-client'
 
 /**
  * Feedback API - Submit feedback
@@ -93,6 +94,25 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ Feedback submitted successfully:', feedback.id)
+
+    // Send email notifications (don't block on this)
+    if (process.env.RESEND_API_KEY) {
+      // Send admin notification
+      sendFeedbackNotification({
+        feedbackType: feedbackType,
+        description: description,
+        userEmail: email || undefined,
+        userId: user.id,
+      }).catch((err) => console.error('Failed to send admin notification:', err))
+
+      // Send user confirmation if email provided
+      if (email) {
+        sendFeedbackConfirmation({
+          toEmail: email,
+          feedbackType: feedbackType,
+        }).catch((err) => console.error('Failed to send user confirmation:', err))
+      }
+    }
 
     return NextResponse.json(
       {

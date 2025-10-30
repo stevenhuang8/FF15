@@ -16,6 +16,9 @@ export interface Feedback {
   status: FeedbackStatus
   created_at: string
   updated_at: string
+  // Optional fields from joined admin_users table
+  user_name?: string | null
+  user_email?: string | null
 }
 
 export interface FeedbackInsert {

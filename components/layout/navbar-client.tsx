@@ -11,10 +11,11 @@ import { HelpButton } from '@/components/feedback/help-button'
 
 interface NavbarClientProps {
   user: User | null
+  isAdmin?: boolean
   userMenuComponent: React.ReactNode
 }
 
-export function NavbarClient({ user, userMenuComponent }: NavbarClientProps) {
+export function NavbarClient({ user, isAdmin, userMenuComponent }: NavbarClientProps) {
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
 
@@ -25,6 +26,7 @@ export function NavbarClient({ user, userMenuComponent }: NavbarClientProps) {
     { href: '/recipes', label: 'Recipes' },
     { href: '/nutrition', label: 'Nutrition' },
     { href: '/workouts', label: 'Workouts' },
+    ...(isAdmin ? [{ href: '/admin/feedback', label: 'Admin' }] : []),
   ]
 
   const isActive = (path: string) => pathname === path

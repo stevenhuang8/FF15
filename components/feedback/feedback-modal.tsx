@@ -23,7 +23,6 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { feedbackSchema, type FeedbackFormData } from './feedback-schema'
 import { useState } from 'react'
-import heic2any from 'heic2any'
 
 interface FeedbackModalProps {
   open: boolean
@@ -74,6 +73,9 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
         if (data.file.type === 'image/heic' || data.file.type === 'image/heif') {
           try {
             console.log('🔄 Converting HEIC to JPEG...')
+            // Lazy load heic2any only when needed (browser-only library)
+            const heic2any = (await import('heic2any')).default;
+
             const convertedBlob = await heic2any({
               blob: data.file,
               toType: 'image/jpeg',

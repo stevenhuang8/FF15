@@ -7,6 +7,7 @@ import { Menu, X, Dumbbell, Apple } from 'lucide-react'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { User } from '@supabase/supabase-js'
+import { HelpButton } from '@/components/feedback/help-button'
 
 interface NavbarClientProps {
   user: User | null
@@ -80,6 +81,7 @@ export function NavbarClient({ user, userMenuComponent }: NavbarClientProps) {
         <div className="flex flex-1 md:flex-initial items-center justify-end space-x-2">
           {user ? (
             <>
+              <HelpButton />
               <div key="user-menu-wrapper">
                 {userMenuComponent}
               </div>
@@ -94,6 +96,7 @@ export function NavbarClient({ user, userMenuComponent }: NavbarClientProps) {
             </>
           ) : (
             <div className="flex items-center space-x-2">
+              <HelpButton />
               <Button variant="ghost" asChild className="transition-smooth glow-hover">
                 <Link href="/login">Sign In</Link>
               </Button>

@@ -138,3 +138,77 @@ export async function listUserIngredientImages(userId: string) {
 
   return data
 }
+
+/**
+ * Upload a feedback attachment to Supabase Storage
+ */
+const FEEDBACK_ATTACHMENTS_BUCKET = 'feedback-attachments'
+
+export async function uploadFeedbackAttachment(
+  file: File,
+  userId?: string
+): Promise<UploadResult> {
+  const supabase = createClient()
+
+  // Generate unique filename
+  const fileExt = file.name.split('.').pop()
+  const timestamp = Date.now()
+  const userPrefix = userId || 'anonymous'
+  const fileName = `${userPrefix}/${timestamp}.${fileExt}`
+
+  // Validate file type
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+  if (!validTypes.includes(file.type)) {
+    throw new Error(`Invalid file type. Supported: JPEG, PNG, GIF, WebP`)
+  }
+
+  // Validate file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024 // 5MB
+  if (file.size > maxSize) {
+    throw new Error('File size must be less than 5MB')
+  }
+
+  // Upload file
+  const { data, error } = await supabase.storage
+    .from(FEEDBACK_ATTACHMENTS_BUCKET)
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+
+  if (error) {
+    console.error('Upload error:', error)
+    throw new Error(`Upload failed: ${error.message}`)
+  }
+
+  if (!data) {
+    throw new Error('Upload failed: No data returned')
+  }
+
+  // Get public URL for feedback attachments
+  const { data: urlData } = supabase.storage
+    .from(FEEDBACK_ATTACHMENTS_BUCKET)
+    .getPublicUrl(data.path)
+
+  return {
+    path: data.path,
+    url: urlData.publicUrl,
+    fullPath: `${FEEDBACK_ATTACHMENTS_BUCKET}/${data.path}`,
+  }
+}
+
+/**
+ * Delete a feedback attachment from Supabase Storage
+ */
+export async function deleteFeedbackAttachment(path: string): Promise<void> {
+  const supabase = createClient()
+
+  const { error } = await supabase.storage
+    .from(FEEDBACK_ATTACHMENTS_BUCKET)
+    .remove([path])
+
+  if (error) {
+    console.error('Delete error:', error)
+    throw new Error(`Delete failed: ${error.message}`)
+  }
+}

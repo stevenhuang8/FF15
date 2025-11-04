@@ -146,9 +146,11 @@ const FEEDBACK_ATTACHMENTS_BUCKET = 'feedback-attachments'
 
 export async function uploadFeedbackAttachment(
   file: File,
-  userId?: string
+  userId: string,
+  supabaseClient?: any
 ): Promise<UploadResult> {
-  const supabase = createClient()
+  // Use provided client (for server-side) or create browser client (for client-side)
+  const supabase = supabaseClient || createClient()
 
   // Generate unique filename
   const fileExt = file.name.split('.').pop()

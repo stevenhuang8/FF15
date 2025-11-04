@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     if (file && file.size > 0) {
       try {
-        const uploadResult = await uploadFeedbackAttachment(file, user.id)
+        const uploadResult = await uploadFeedbackAttachment(file, user.id, supabase)
         attachmentUrl = uploadResult.url
         attachmentPath = uploadResult.path
         console.log('✅ File uploaded successfully:', uploadResult.path)
@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
         description: description,
         userEmail: email || undefined,
         userId: user.id,
+        attachmentUrl: attachmentUrl || undefined,
       }).catch((err) => console.error('Failed to send admin notification:', err))
 
       // Send user confirmation if email provided

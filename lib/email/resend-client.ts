@@ -15,6 +15,7 @@ export async function sendFeedbackNotification(params: {
   description: string
   userEmail?: string
   userId: string
+  attachmentUrl?: string
 }) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com'
@@ -30,6 +31,11 @@ export async function sendFeedbackNotification(params: {
         ${params.userEmail ? `<p><strong>Email:</strong> ${params.userEmail}</p>` : ''}
         <p><strong>Description:</strong></p>
         <p>${params.description.replace(/\n/g, '<br>')}</p>
+        ${params.attachmentUrl ? `
+        <p><strong>Attachment:</strong></p>
+        <img src="${params.attachmentUrl}" alt="Feedback attachment" style="max-width: 600px; height: auto; border: 1px solid #ddd; border-radius: 4px;">
+        <p><a href="${params.attachmentUrl}" target="_blank">View full size image</a></p>
+        ` : ''}
         <hr>
         <p><small>View all feedback in your admin dashboard</small></p>
       `,

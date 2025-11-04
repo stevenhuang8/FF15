@@ -5,12 +5,15 @@
 This project uses Supabase Storage with **private buckets** and **signed URLs** for secure image storage. This ensures:
 - Only authenticated users can upload images
 - Only authorized users can access images
-- URLs expire after 1 hour for additional security
+- URLs expire after 1 hour for additional security (for ingredient-images)
+- Public access for feedback attachments (for admin review)
 - No public browsing or listing of files
 
 ## Bucket Configuration
 
-### 1. Create the Bucket (if not exists)
+### 1. Create the Buckets (if not exist)
+
+#### Bucket 1: `ingredient-images` (Private)
 
 1. Go to **Supabase Dashboard** → **Storage**
 2. Click **New bucket**
@@ -19,7 +22,18 @@ This project uses Supabase Storage with **private buckets** and **signed URLs** 
 5. **File size limit**: 5 MB (optional)
 6. Click **Create bucket**
 
+#### Bucket 2: `feedback-attachments` (Public)
+
+1. Go to **Supabase Dashboard** → **Storage**
+2. Click **New bucket**
+3. Name: `feedback-attachments`
+4. **Public bucket**: **ON** (allows admin access to review feedback)
+5. **File size limit**: 5 MB (optional)
+6. Click **Create bucket**
+
 ### 2. Set Up Row Level Security (RLS) Policies
+
+#### For `ingredient-images` Bucket (Private)
 
 Navigate to **Storage** → **Policies** for the `ingredient-images` bucket.
 
@@ -109,6 +123,56 @@ USING (
 - Allows users to update metadata of their own files
 - Prevents modification of other users' files
 
+#### For `feedback-attachments` Bucket (Public)
+
+Navigate to **Storage** → **Policies** for the `feedback-attachments` bucket.
+
+##### Policy 1: Allow Authenticated Users to Upload Feedback Attachments
+
+```sql
+-- Policy Name: Authenticated users can upload feedback attachments
+-- Operation: INSERT
+-- Target roles: authenticated
+
+CREATE POLICY "Authenticated users can upload feedback attachments"
+ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'feedback-attachments'
+);
+```
+
+**What this does:**
+- Allows any authenticated user to upload feedback attachments
+- No folder restriction (simpler than ingredient-images)
+- Files are organized by timestamp in user folders for management
+
+##### Policy 2: Allow Public Read Access for Feedback Attachments
+
+Since this is a **public bucket**, no SELECT policy is needed. Admins can access attachments via the feedback management system.
+
+##### Policy 3: Allow Users to Delete Their Own Feedback Attachments (Optional)
+
+```sql
+-- Policy Name: Users can delete their own feedback attachments
+-- Operation: DELETE
+-- Target roles: authenticated
+
+CREATE POLICY "Users can delete their own feedback attachments"
+ON storage.objects
+FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'feedback-attachments' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+```
+
+**What this does:**
+- Allows users to delete only their own feedback attachments
+- Optional: Can be omitted if you want attachments to be permanent
+
 ## How It Works
 
 ### Upload Flow
@@ -183,6 +247,15 @@ pnpm dev
 
 ## Configuration Files
 
-- Implementation: `/lib/supabase/storage.ts`
-- Upload component: `/components/ingredient/ingredient-upload.tsx`
+- Storage implementation: `/lib/supabase/storage.ts`
+- Ingredient upload component: `/components/ingredient/ingredient-upload.tsx`
+- Feedback modal: `/components/feedback/feedback-modal.tsx`
+- Feedback API route: `/app/api/feedback/route.ts`
 - Next.js config: `/next.config.ts`
+
+## Important Notes
+
+- **ingredient-images**: Uses signed URLs with 1-hour expiry for privacy
+- **feedback-attachments**: Uses public URLs for admin access
+- Both buckets have 5MB file size limits
+- HEIC images are automatically converted to JPEG before upload (client-side)

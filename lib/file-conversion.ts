@@ -11,18 +11,94 @@ export interface FileDataPart {
 }
 
 /**
- * Convert a single file to a data URL (base64)
+ * Compress an image file to reduce size before uploading
+ * Resizes large images and compresses quality to fit within Vercel's body size limits
+ *
+ * @param file - The image file to compress
+ * @param maxWidth - Maximum width (default: 1920px for high quality)
+ * @param maxHeight - Maximum height (default: 1920px for high quality)
+ * @param quality - JPEG/WebP quality (0-1, default: 0.85)
+ * @returns Promise<File> - Compressed image file
  */
-export async function convertFileToDataURL(file: File): Promise<FileDataPart> {
+export async function compressImage(
+  file: File,
+  maxWidth: number = 1920,
+  maxHeight: number = 1920,
+  quality: number = 0.85
+): Promise<File> {
+  // Skip compression for GIFs (to preserve animation) and very small files
+  if (file.type === 'image/gif' || file.size < 100 * 1024) {
+    return file;
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onload = () => {
-      resolve({
-        type: 'file',
-        mediaType: file.type,
-        url: reader.result as string,
-      });
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Calculate new dimensions (preserve aspect ratio)
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          const aspectRatio = width / height;
+
+          if (width > height) {
+            width = maxWidth;
+            height = Math.round(maxWidth / aspectRatio);
+          } else {
+            height = maxHeight;
+            width = Math.round(maxHeight * aspectRatio);
+          }
+        }
+
+        // Create canvas and compress
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to blob with compression
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Failed to compress image'));
+              return;
+            }
+
+            // Create new file from compressed blob
+            const compressedFile = new File(
+              [blob],
+              file.name.replace(/\.(png|webp)$/i, '.jpg'), // Convert to JPEG for better compression
+              { type: 'image/jpeg', lastModified: Date.now() }
+            );
+
+            console.log('🗜️ Image compressed:', {
+              original: formatFileSize(file.size),
+              compressed: formatFileSize(compressedFile.size),
+              reduction: `${Math.round((1 - compressedFile.size / file.size) * 100)}%`,
+            });
+
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+
+      img.onerror = () => {
+        reject(new Error(`Failed to load image: ${file.name}`));
+      };
+
+      img.src = e.target?.result as string;
     };
 
     reader.onerror = () => {
@@ -30,6 +106,41 @@ export async function convertFileToDataURL(file: File): Promise<FileDataPart> {
     };
 
     reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Convert a single file to a data URL (base64)
+ * Now includes automatic compression to prevent Vercel 413 errors
+ */
+export async function convertFileToDataURL(file: File): Promise<FileDataPart> {
+  // Compress image first to reduce payload size
+  const compressedFile = await compressImage(file);
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const dataURL = reader.result as string;
+
+      // Check final base64 size (warn if approaching Vercel limits)
+      const sizeInMB = (dataURL.length * 0.75) / (1024 * 1024); // base64 to bytes conversion
+      if (sizeInMB > 3) {
+        console.warn(`⚠️ Large image detected: ${sizeInMB.toFixed(2)}MB after compression`);
+      }
+
+      resolve({
+        type: 'file',
+        mediaType: compressedFile.type,
+        url: dataURL,
+      });
+    };
+
+    reader.onerror = () => {
+      reject(new Error(`Failed to read file: ${compressedFile.name}`));
+    };
+
+    reader.readAsDataURL(compressedFile);
   });
 }
 

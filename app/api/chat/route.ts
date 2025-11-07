@@ -41,6 +41,11 @@ import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+// Increase body size limit for multimodal requests (images)
+// Vercel default: 4.5MB, increased to 10MB for compressed images
+export const maxDuration = 60; // 60 seconds for AI processing
+export const bodyParser = { sizeLimit: '10mb' };
+
 /**
  * Main Chat API Route with Multi-Agent Architecture Pattern
  *

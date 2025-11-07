@@ -145,7 +145,7 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timezoneOffset = new Date().getTimezoneOffset();
 
-  const { messages: rawMessages, status, sendMessage, setMessages } = useChat({
+  const { messages: rawMessages, status, sendMessage, setMessages, error } = useChat({
     transport: new DefaultChatTransport({
       api: api || '/api/chat', // Default to /api/chat if no custom api provided
       headers: {
@@ -153,6 +153,30 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
         'X-User-Timezone-Offset': String(timezoneOffset),
       }
     }),
+    onError: (error) => {
+      console.error('💥 Chat error:', error);
+
+      // Handle 413 Payload Too Large errors
+      if (error.message?.includes('413') || error.message?.includes('Content Too Large')) {
+        alert(
+          '⚠️ Images too large\n\n' +
+          'The images you uploaded are too large to send. This usually happens when:\n' +
+          '• Uploading 4+ high-resolution images\n' +
+          '• Images are extremely large (>10MB each)\n\n' +
+          'Try:\n' +
+          '• Uploading fewer images (2-3 at a time)\n' +
+          '• Using lower resolution images\n' +
+          '• The images are automatically compressed, but very large files may still exceed limits.'
+        );
+      } else {
+        // Generic error message for other failures
+        alert(
+          '❌ Failed to send message\n\n' +
+          `Error: ${error.message || 'Unknown error'}\n\n` +
+          'Please try again. If the problem persists, try refreshing the page.'
+        );
+      }
+    },
   });
 
 

@@ -31,7 +31,6 @@ export default function Home() {
           fill
           className="object-cover opacity-20"
           priority
-          quality={90}
         />
         <div className="absolute inset-0 bg-gradient-dark" />
       </div>

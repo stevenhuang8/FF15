@@ -250,9 +250,19 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
   // Track previous conversationId to detect switches
   const prevConversationIdRef = useRef<string | null>(null);
 
+  // Track last activity time to prevent saving during active conversations
+  // This prevents race conditions where streaming IDs get replaced with database UUIDs
+  const lastActivityRef = useRef<number>(Date.now());
+
   // Load conversation history when conversationId changes
   useEffect(() => {
     const loadConversationHistory = async () => {
+      // Save previous conversation before switching (if we're switching, not initial load)
+      if (prevConversationIdRef.current !== null && prevConversationIdRef.current !== conversationId) {
+        console.log(`💾 Saving previous conversation (${prevConversationIdRef.current}) before switching...`);
+        await autoSaveMessages();
+      }
+
       // Reset save tracking when switching conversations
       if (prevConversationIdRef.current !== conversationId) {
         savedMessageIdsRef.current.clear();
@@ -329,16 +339,47 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
     loadConversationHistory();
   }, [conversationId, setMessages]);
 
-  // Auto-save messages to Supabase with debounce
+  // Update last activity time whenever messages change or status changes
+  // This tracks user/AI activity to prevent saving during active conversations
   useEffect(() => {
-    // Debounce auto-save to prevent immediate saves on history load
+    lastActivityRef.current = Date.now();
+  }, [messages.length, status]);
+
+  // Auto-save messages to Supabase with extended debounce (5 seconds)
+  // This prevents race conditions where streaming IDs get replaced during active conversations
+  useEffect(() => {
+    // Extended debounce to ensure conversation is truly idle before saving
     const timeoutId = setTimeout(() => {
-      console.log(`⏰ Auto-save triggered. Status: ${status}, Messages count: ${messages.length}`);
-      autoSaveMessages();
-    }, 500); // 500ms debounce
+      // Additional guard: only save if conversation has been idle for at least 5 seconds
+      const timeSinceActivity = Date.now() - lastActivityRef.current;
+      const minimumIdleTime = 5000; // 5 seconds
+
+      if (timeSinceActivity >= minimumIdleTime) {
+        console.log(`⏰ Auto-save triggered. Status: ${status}, Messages count: ${messages.length}, Idle time: ${timeSinceActivity}ms`);
+        autoSaveMessages();
+      } else {
+        console.log(`⏸️ Skipping auto-save - conversation still active (idle for only ${timeSinceActivity}ms, need ${minimumIdleTime}ms)`);
+      }
+    }, 5000); // 5 second debounce (increased from 500ms)
 
     return () => clearTimeout(timeoutId);
-  }, [messages.length, currentConversationId, status]); // Trigger on message count, conversation change, OR status change (for streaming completion)
+  }, [messages.length, currentConversationId, status]); // Trigger on message count, conversation change, OR status change
+
+  // Save messages when user closes page/tab (best-effort - not 100% reliable)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Attempt to save messages synchronously (limited time available)
+      // Note: Modern browsers may not allow async operations here
+      if (messages.length > 0 && currentConversationId) {
+        console.log('📤 Page unloading - attempting to save messages...');
+        // Fire and forget - browser may kill this
+        autoSaveMessages();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [messages.length, currentConversationId]);
 
   const autoSaveMessages = async () => {
     // Don't save if already saving or loading history

@@ -4,7 +4,7 @@
  * AI SDK MCP Integration: https://ai-sdk.dev/cookbook/node/mcp-tools
  */
 
-import { experimental_createMCPClient } from "ai";
+import { experimental_createMCPClient } from "@ai-sdk/mcp";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import type { MCPClientConfig } from "./types";
 

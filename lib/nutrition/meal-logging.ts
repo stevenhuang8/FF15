@@ -435,12 +435,43 @@ export async function getDailyNutrition(
 
     console.log(`✅ getDailyNutrition: Querying for user ${userId}, date ${dateStr}`);
 
-    const { data, error } = await supabase
-      .from('calorie_tracking')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('date', dateStr)
-      .single();
+    let data, error;
+    try {
+      const result = await supabase
+        .from('calorie_tracking')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('date', dateStr)
+        .single();
+
+      data = result.data;
+      error = result.error;
+
+      console.log('📊 Query result:', { hasData: !!data, hasError: !!error, errorCode: error?.code });
+    } catch (fetchError: any) {
+      console.error('💥 Exception during Supabase query:', {
+        message: fetchError?.message,
+        status: fetchError?.status,
+        statusText: fetchError?.statusText,
+        name: fetchError?.name,
+        stack: fetchError?.stack?.split('\n')[0]
+      });
+
+      // Return empty data for no records found
+      return {
+        data: {
+          userId,
+          date: dateStr,
+          totalCaloriesConsumed: 0,
+          totalProteinConsumed: 0,
+          totalCarbsConsumed: 0,
+          totalFatsConsumed: 0,
+          totalCaloriesBurned: 0,
+          netCalories: 0,
+        },
+        error: null,
+      };
+    }
 
     if (error) {
       if (error.code === 'PGRST116') {

@@ -3,6 +3,7 @@
  */
 
 import { format, startOfWeek, endOfWeek, differenceInDays, isSameDay } from 'date-fns'
+import { parseLocalDate } from '@/lib/utils'
 import type { WeekGroup, DayGroup } from '@/types/history'
 
 /**
@@ -76,7 +77,7 @@ export function groupByDay<T>(
 
   // Convert map to array of DayGroup objects
   const dayGroups: DayGroup<T>[] = Array.from(dayMap.entries()).map(([dayKey, dayItems]) => {
-    const date = new Date(dayKey)
+    const date = parseLocalDate(dayKey)
 
     return {
       dateLabel: getDayLabel(date),

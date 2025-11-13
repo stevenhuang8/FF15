@@ -26,7 +26,11 @@ import {
   Activity,
   Trash2,
   Pencil,
+  CalendarDays,
 } from 'lucide-react'
+
+import { groupByWeek } from '@/lib/utils/date-grouping'
+import type { WeekGroup, WorkoutWeekStats } from '@/types/history'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -97,6 +101,7 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [intensityFilter, setIntensityFilter] = useState<string>('all')
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set())
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [workoutToDelete, setWorkoutToDelete] = useState<WorkoutLog | null>(null)
@@ -274,8 +279,47 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
   const analytics = calculateAnalytics()
 
   // ============================================================================
+  // Weekly Grouping
+  // ============================================================================
+
+  const weeklyGroups = groupByWeek(filteredLogs, (log) => log.completed_at)
+
+  const calculateWeekStats = (workouts: WorkoutLog[]): WorkoutWeekStats => {
+    if (workouts.length === 0) {
+      return {
+        totalWorkouts: 0,
+        totalDuration: 0,
+        totalCalories: 0,
+        avgDuration: 0,
+        avgCalories: 0,
+      }
+    }
+
+    const totalDuration = workouts.reduce((sum, log) => sum + log.total_duration_minutes, 0)
+    const totalCalories = workouts.reduce((sum, log) => sum + (log.calories_burned || 0), 0)
+
+    return {
+      totalWorkouts: workouts.length,
+      totalDuration,
+      totalCalories,
+      avgDuration: Math.round(totalDuration / workouts.length),
+      avgCalories: Math.round(totalCalories / workouts.length),
+    }
+  }
+
+  // ============================================================================
   // UI Handlers
   // ============================================================================
+
+  const toggleWeekExpanded = (weekKey: string) => {
+    const newExpanded = new Set(expandedWeeks)
+    if (newExpanded.has(weekKey)) {
+      newExpanded.delete(weekKey)
+    } else {
+      newExpanded.add(weekKey)
+    }
+    setExpandedWeeks(newExpanded)
+  }
 
   const toggleLogExpanded = (logId: string) => {
     const newExpanded = new Set(expandedLogs)
@@ -451,7 +495,7 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
         </CardContent>
       </Card>
 
-      {/* Workout Logs List */}
+      {/* Workout Logs List - Grouped by Week */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -467,126 +511,183 @@ export function WorkoutLogHistory({ limit }: WorkoutLogHistoryProps) {
                 : 'No workouts match your filters.'}
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredLogs.map((log) => (
-                <Collapsible key={log.id}>
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <CollapsibleTrigger
-                        onClick={() => toggleLogExpanded(log.id)}
-                        className="flex-1"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 text-left">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-semibold">{log.title}</h4>
-                              <Badge className={getIntensityColor(log.intensity)}>
-                                {log.intensity}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {format(new Date(log.completed_at), 'MMM d, yyyy')}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {log.total_duration_minutes} min
-                              </span>
-                              {log.calories_burned && (
-                                <span className="flex items-center gap-1">
-                                  <Flame className="h-3 w-3" />
-                                  {log.calories_burned} cal
-                                </span>
-                              )}
-                              <span className="flex items-center gap-1">
-                                <Activity className="h-3 w-3" />
-                                {log.exercises_performed.length} exercises
-                              </span>
-                            </div>
-                          </div>
-                          {expandedLogs.has(log.id) ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </div>
-                      </CollapsibleTrigger>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleEditClick(log)
-                          }}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteClick(log)
-                          }}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+            <div className="space-y-4">
+              {weeklyGroups.map((week) => {
+                const weekStats = calculateWeekStats(week.items)
+                const isWeekExpanded = expandedWeeks.has(week.weekKey)
 
-                    <CollapsibleContent>
-                      <div className="mt-4 pt-4 border-t space-y-3">
-                        {/* Exercises Performed */}
-                        <div>
-                          <h5 className="font-medium mb-2">Exercises</h5>
-                          <div className="space-y-2">
-                            {log.exercises_performed.map((exercise: any, idx: number) => (
-                              <div
-                                key={idx}
-                                className="flex items-start justify-between text-sm bg-muted rounded-md p-2"
-                              >
-                                <div>
-                                  <p className="font-medium">{exercise.name}</p>
-                                  <p className="text-muted-foreground">
-                                    {exercise.sets && `${exercise.sets} sets`}
-                                    {exercise.reps && ` × ${exercise.reps} reps`}
-                                    {exercise.weight &&
-                                      ` @ ${exercise.weight} ${exercise.weightUnit || 'lbs'}`}
-                                    {exercise.durationMinutes &&
-                                      ` • ${exercise.durationMinutes} min`}
-                                  </p>
-                                  {exercise.notes && (
-                                    <p className="text-xs text-muted-foreground italic mt-1">
-                                      {exercise.notes}
-                                    </p>
-                                  )}
-                                </div>
-                                {exercise.caloriesBurned && (
-                                  <Badge variant="outline">
-                                    {exercise.caloriesBurned} cal
-                                  </Badge>
+                return (
+                  <Collapsible key={week.weekKey} open={isWeekExpanded}>
+                    <div className="rounded-lg border">
+                      {/* Week Header */}
+                      <CollapsibleTrigger
+                        onClick={() => toggleWeekExpanded(week.weekKey)}
+                        className="w-full p-4 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <CalendarDays className="h-5 w-5 text-muted-foreground" />
+                            <div className="text-left">
+                              <h3 className="font-semibold text-base">{week.weekLabel}</h3>
+                              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-1">
+                                <span className="flex items-center gap-1">
+                                  <Dumbbell className="h-3 w-3" />
+                                  {weekStats.totalWorkouts} workout
+                                  {weekStats.totalWorkouts !== 1 ? 's' : ''}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {Math.floor(weekStats.totalDuration / 60)}h{' '}
+                                  {weekStats.totalDuration % 60}m total
+                                </span>
+                                {weekStats.totalCalories > 0 && (
+                                  <span className="flex items-center gap-1">
+                                    <Flame className="h-3 w-3" />
+                                    {weekStats.totalCalories} cal burned
+                                  </span>
                                 )}
                               </div>
-                            ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">{week.items.length}</Badge>
+                            {isWeekExpanded ? (
+                              <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                            )}
                           </div>
                         </div>
+                      </CollapsibleTrigger>
 
-                        {/* Workout Notes */}
-                        {log.notes && (
-                          <div>
-                            <h5 className="font-medium mb-1">Notes</h5>
-                            <p className="text-sm text-muted-foreground">{log.notes}</p>
-                          </div>
-                        )}
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
-              ))}
+                      {/* Week Content - Individual Workouts */}
+                      <CollapsibleContent>
+                        <div className="border-t p-4 space-y-3 bg-muted/20">
+                          {week.items.map((log) => (
+                            <Collapsible key={log.id}>
+                              <div className="rounded-lg border bg-background p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                  <CollapsibleTrigger
+                                    onClick={() => toggleLogExpanded(log.id)}
+                                    className="flex-1"
+                                  >
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="flex-1 text-left">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <h4 className="font-semibold">{log.title}</h4>
+                                          <Badge className={getIntensityColor(log.intensity)}>
+                                            {log.intensity}
+                                          </Badge>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                          <span className="flex items-center gap-1">
+                                            <Calendar className="h-3 w-3" />
+                                            {format(new Date(log.completed_at), 'MMM d, yyyy')}
+                                          </span>
+                                          <span className="flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            {log.total_duration_minutes} min
+                                          </span>
+                                          {log.calories_burned && (
+                                            <span className="flex items-center gap-1">
+                                              <Flame className="h-3 w-3" />
+                                              {log.calories_burned} cal
+                                            </span>
+                                          )}
+                                          <span className="flex items-center gap-1">
+                                            <Activity className="h-3 w-3" />
+                                            {log.exercises_performed.length} exercises
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {expandedLogs.has(log.id) ? (
+                                        <ChevronUp className="h-4 w-4" />
+                                      ) : (
+                                        <ChevronDown className="h-4 w-4" />
+                                      )}
+                                    </div>
+                                  </CollapsibleTrigger>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleEditClick(log)
+                                      }}
+                                      className="text-muted-foreground hover:text-foreground"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleDeleteClick(log)
+                                      }}
+                                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                <CollapsibleContent>
+                                  <div className="mt-4 pt-4 border-t space-y-3">
+                                    {/* Exercises Performed */}
+                                    <div>
+                                      <h5 className="font-medium mb-2">Exercises</h5>
+                                      <div className="space-y-2">
+                                        {log.exercises_performed.map((exercise: any, idx: number) => (
+                                          <div
+                                            key={idx}
+                                            className="flex items-start justify-between text-sm bg-muted rounded-md p-2"
+                                          >
+                                            <div>
+                                              <p className="font-medium">{exercise.name}</p>
+                                              <p className="text-muted-foreground">
+                                                {exercise.sets && `${exercise.sets} sets`}
+                                                {exercise.reps && ` × ${exercise.reps} reps`}
+                                                {exercise.weight &&
+                                                  ` @ ${exercise.weight} ${exercise.weightUnit || 'lbs'}`}
+                                                {exercise.durationMinutes &&
+                                                  ` • ${exercise.durationMinutes} min`}
+                                              </p>
+                                              {exercise.notes && (
+                                                <p className="text-xs text-muted-foreground italic mt-1">
+                                                  {exercise.notes}
+                                                </p>
+                                              )}
+                                            </div>
+                                            {exercise.caloriesBurned && (
+                                              <Badge variant="outline">
+                                                {exercise.caloriesBurned} cal
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Workout Notes */}
+                                    {log.notes && (
+                                      <div>
+                                        <h5 className="font-medium mb-1">Notes</h5>
+                                        <p className="text-sm text-muted-foreground">{log.notes}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </CollapsibleContent>
+                              </div>
+                            </Collapsible>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
+                )
+              })}
             </div>
           )}
         </CardContent>

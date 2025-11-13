@@ -19,12 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Plus, TrendingUp, Apple } from 'lucide-react'
+import { Plus, TrendingUp, Apple, History } from 'lucide-react'
 
 import { CalorieTracker } from '@/components/nutrition/calorie-tracker'
 import { MealLogForm } from '@/components/nutrition/meal-log-form'
 import { NutritionAnalytics } from '@/components/nutrition/nutrition-analytics'
 import { TodaysMeals } from '@/components/nutrition/todays-meals'
+import { MealHistory } from '@/components/nutrition/meal-history'
 import type { MealType } from '@/lib/nutrition/types'
 
 export function NutritionPageClient() {
@@ -66,10 +67,14 @@ export function NutritionPageClient() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+        <TabsList className="grid w-full grid-cols-3 lg:w-[550px]">
           <TabsTrigger value="today" className="gap-2">
             <Apple className="h-4 w-4" />
             Today
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <History className="h-4 w-4" />
+            History
           </TabsTrigger>
           <TabsTrigger value="analytics" className="gap-2">
             <TrendingUp className="h-4 w-4" />
@@ -116,6 +121,10 @@ export function NutritionPageClient() {
             onLogMeal={handleLogMeal}
             onMealDeleted={handleMealDeleted}
           />
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-6">
+          <MealHistory weeksBack={12} />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">

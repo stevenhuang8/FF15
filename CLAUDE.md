@@ -632,6 +632,97 @@ Key references for integration:
 - **Row Level Security (RLS)**: https://supabase.com/docs/guides/auth/row-level-security
 - **TypeScript Support**: https://supabase.com/docs/guides/api/generating-types
 
+### Email Confirmation Setup
+
+This application uses Supabase authentication with email confirmations for signup and password reset. The following configuration is required in your Supabase Dashboard:
+
+#### 1. Configure Redirect URLs
+
+Navigate to: **Authentication → URL Configuration** (https://supabase.com/dashboard/project/YOUR_PROJECT_ID/auth/url-configuration)
+
+**Site URL**: Set to your production domain
+- Development: `http://localhost:3000`
+- Production: `https://your-app.vercel.app` (or your custom domain)
+
+**Redirect URLs**: Add all these URLs to the whitelist
+- `http://localhost:3000/**` (for local development)
+- `https://your-app.vercel.app/**` (for production)
+- `https://your-app.vercel.app/auth/callback` (email confirmation callback)
+- `https://your-app.vercel.app/reset-password` (password reset page)
+
+#### 2. Email Templates (Optional Customization)
+
+Navigate to: **Authentication → Email Templates** (https://supabase.com/dashboard/project/YOUR_PROJECT_ID/auth/templates)
+
+The default Supabase templates use `{{ .ConfirmationURL }}` which automatically routes to `/auth/callback` when configured correctly.
+
+**Available Templates:**
+- **Confirm Signup**: Sent when users sign up (verification email)
+- **Reset Password**: Sent when users request password reset
+- **Magic Link**: Sent for passwordless login
+- **Change Email**: Sent when users change email address
+
+**Template Variables:**
+- `{{ .ConfirmationURL }}` - Auto-generated confirmation link (routes to `/auth/callback`)
+- `{{ .Token }}` - Confirmation token
+- `{{ .SiteURL }}` - Your configured site URL
+- `{{ .Email }}` - User's email address
+
+#### 3. Environment Variables
+
+Ensure your `.env.local` has:
+
+```bash
+# Application URL - CRITICAL for email redirects
+NEXT_PUBLIC_APP_URL=https://your-app.vercel.app  # Production
+# or
+NEXT_PUBLIC_APP_URL=http://localhost:3000         # Development
+
+# Supabase credentials
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+For Vercel deployment, add these as environment variables in **Project Settings → Environment Variables**.
+
+#### 4. Email Flow Architecture
+
+**Signup Flow:**
+1. User submits signup form
+2. Supabase sends confirmation email with link to `/auth/callback?token_hash=xxx&type=email`
+3. Callback route verifies token and creates session
+4. User redirected to home page
+
+**Password Reset Flow:**
+1. User requests password reset
+2. Supabase sends email with link to `/auth/callback?token_hash=xxx&type=recovery`
+3. Callback route verifies token and creates session
+4. User redirected to `/reset-password` page to set new password
+
+#### 5. Auth Callback Route
+
+The application includes `/app/auth/callback/route.ts` which handles:
+- Email verification tokens (`type=email`)
+- Password recovery tokens (`type=recovery`)
+- OAuth code exchanges (`code=xxx`)
+- PKCE flow completion
+
+This route is automatically configured in the auth helpers:
+- `signUpWithPassword()` → sets `emailRedirectTo: ${NEXT_PUBLIC_APP_URL}/auth/callback`
+- `resetPassword()` → sets `redirectTo: ${NEXT_PUBLIC_APP_URL}/auth/callback`
+
+#### Troubleshooting
+
+**Issue**: Emails redirect to localhost in production
+**Solution**: Update `NEXT_PUBLIC_APP_URL` in Vercel environment variables to your production domain
+
+**Issue**: "Invalid redirect URL" error
+**Solution**: Ensure the callback URL is whitelisted in Supabase Dashboard → Authentication → URL Configuration
+
+**Issue**: Email confirmation not working
+**Solution**: Check that email templates use `{{ .ConfirmationURL }}` and Site URL is configured correctly
+
 ## Critical Rules for useChat Implementation
 
 **NEVER EVER DO THIS:**

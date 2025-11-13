@@ -44,9 +44,16 @@ export async function signInWithPassword(email: string, password: string) {
  */
 export async function signUpWithPassword(email: string, password: string) {
   const supabase = createClient()
+
+  // Use environment variable for production, fallback to window location for dev
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${baseUrl}/auth/callback`,
+    },
   })
 
   if (error) {
@@ -63,8 +70,12 @@ export async function signUpWithPassword(email: string, password: string) {
  */
 export async function resetPassword(email: string) {
   const supabase = createClient()
+
+  // Use environment variable for production, fallback to window location for dev
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: `${baseUrl}/auth/callback`,
   })
 
   if (error) {

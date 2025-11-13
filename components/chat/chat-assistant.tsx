@@ -684,14 +684,18 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
                 }
               });
 
-              // Check for duplicate keys and log errors only
-              const allIds = flowItems.map(item => item.id);
-              const duplicateIds = allIds.filter((id, index) => allIds.indexOf(id) !== index);
-              if (duplicateIds.length > 0) {
-                console.error(`🚨 Duplicate keys found:`, duplicateIds);
-              }
+              // Deduplicate flow items by ID - keep the latest occurrence
+              const seenIds = new Set<string>();
+              const deduplicatedFlowItems = flowItems.filter(item => {
+                if (seenIds.has(item.id)) {
+                  console.warn(`⚠️ Filtering duplicate key: ${item.id}`);
+                  return false;
+                }
+                seenIds.add(item.id);
+                return true;
+              });
 
-              return flowItems.map((item, itemIndex) => {
+              return deduplicatedFlowItems.map((item, itemIndex) => {
                 // Only render messages (tool-call and reasoning rendering removed)
                 if (item.type === 'message') {
                   // Render regular message

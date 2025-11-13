@@ -423,6 +423,18 @@ export async function getDailyNutrition(
 
     console.log(`🔍 Fetching daily nutrition for date: ${dateStr}`);
 
+    // Check if user is authenticated before querying
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('❌ getDailyNutrition: Not authenticated', authError);
+      return {
+        data: null,
+        error: new Error('User not authenticated')
+      };
+    }
+
+    console.log(`✅ getDailyNutrition: Querying for user ${userId}, date ${dateStr}`);
+
     const { data, error } = await supabase
       .from('calorie_tracking')
       .select('*')
@@ -447,7 +459,14 @@ export async function getDailyNutrition(
           error: null,
         };
       }
-      console.error('Error fetching daily nutrition:', error);
+      console.error('❌ Error fetching daily nutrition:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        userId,
+        date: dateStr
+      });
       return { data: null, error };
     }
 

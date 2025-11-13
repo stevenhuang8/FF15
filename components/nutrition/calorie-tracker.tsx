@@ -113,11 +113,20 @@ export function CalorieTracker({ className }: CalorieTrackerProps) {
       const supabase = createClient()
       const {
         data: { user },
+        error: authError
       } = await supabase.auth.getUser()
 
+      if (authError) {
+        console.error('Auth error in CalorieTracker:', authError)
+        throw new Error('Authentication error')
+      }
+
       if (!user) {
+        console.warn('No user found in CalorieTracker - should be redirected by middleware')
         throw new Error('User not authenticated')
       }
+
+      console.log('✅ CalorieTracker: User authenticated:', user.id)
 
       // Fetch user profile for targets
       const { data: profile, error: profileError } = await supabase

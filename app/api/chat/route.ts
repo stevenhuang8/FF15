@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
         console.log(`⏱️ Request completed:`, {
           executionTime: `${executionSeconds}s`,
           finishReason,
-          toolCallsCount: response.steps?.filter(s => s.toolCalls?.length > 0).length || 0,
+          // Note: response.steps API not yet available in AI SDK v5.0.44
           warningIfSlow: executionTime > 120000 ? '⚠️ Took >2 minutes' : undefined,
         });
 

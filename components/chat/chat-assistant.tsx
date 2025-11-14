@@ -156,6 +156,42 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
     onError: (error) => {
       console.error('💥 Chat error:', error);
 
+      // Enhanced logging for debugging streaming issues
+      console.error('💥 Error details:', {
+        message: error.message,
+        stack: error.stack,
+        messagesCount: rawMessages.length,
+        lastMessageId: rawMessages[rawMessages.length - 1]?.id,
+        status,
+        conversationId: currentConversationId,
+      });
+
+      // Check for streaming ID errors (rs_... not found)
+      if (error.message?.includes('rs_') && error.message?.includes('not found')) {
+        console.error('🔍 Streaming ID error detected:', {
+          errorMessage: error.message,
+          allMessageIds: rawMessages.map(m => m.id),
+          allMessageParts: rawMessages.map(m => ({
+            id: m.id,
+            role: m.role,
+            partsCount: (m as any).parts?.length,
+            partTypes: (m as any).parts?.map((p: any) => p.type),
+          })),
+        });
+
+        alert(
+          '⚠️ Streaming Error\n\n' +
+          'There was an issue with the AI response stream. This can happen due to:\n' +
+          '• Network connectivity issues\n' +
+          '• Browser cache corruption\n\n' +
+          'Try:\n' +
+          '• Refreshing the page (Ctrl+R or Cmd+R)\n' +
+          '• Clearing your browser cache\n' +
+          '• If the issue persists, please report it with the error ID: ' + error.message.match(/rs_[a-f0-9]+/)?.[0]
+        );
+        return;
+      }
+
       // Handle 413 Payload Too Large errors
       if (error.message?.includes('413') || error.message?.includes('Content Too Large')) {
         alert(
@@ -345,14 +381,14 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
     lastActivityRef.current = Date.now();
   }, [messages.length, status]);
 
-  // Auto-save messages to Supabase with extended debounce (5 seconds)
+  // Auto-save messages to Supabase with extended debounce (10 seconds)
   // This prevents race conditions where streaming IDs get replaced during active conversations
   useEffect(() => {
     // Extended debounce to ensure conversation is truly idle before saving
     const timeoutId = setTimeout(() => {
-      // Additional guard: only save if conversation has been idle for at least 5 seconds
+      // Additional guard: only save if conversation has been idle for at least 10 seconds
       const timeSinceActivity = Date.now() - lastActivityRef.current;
-      const minimumIdleTime = 5000; // 5 seconds
+      const minimumIdleTime = 10000; // 10 seconds (increased from 5s to reduce streaming interference)
 
       if (timeSinceActivity >= minimumIdleTime) {
         console.log(`⏰ Auto-save triggered. Status: ${status}, Messages count: ${messages.length}, Idle time: ${timeSinceActivity}ms`);
@@ -360,7 +396,7 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
       } else {
         console.log(`⏸️ Skipping auto-save - conversation still active (idle for only ${timeSinceActivity}ms, need ${minimumIdleTime}ms)`);
       }
-    }, 5000); // 5 second debounce (increased from 500ms)
+    }, 10000); // 10 second debounce (increased from 5s to reduce streaming interference)
 
     return () => clearTimeout(timeoutId);
   }, [messages.length, currentConversationId, status]); // Trigger on message count, conversation change, OR status change

@@ -43,7 +43,8 @@ import { createClient } from "@/lib/supabase/server";
 
 // Increase body size limit for multimodal requests (images)
 // Vercel default: 4.5MB, increased to 10MB for compressed images
-export const maxDuration = 60; // 60 seconds for AI processing
+export const maxDuration = 300; // 300 seconds (5 min) for complex AI processing
+// Increased  to 300s to prevent timeout during:
 export const bodyParser = { sizeLimit: '10mb' };
 
 /**
@@ -69,6 +70,8 @@ export const bodyParser = { sizeLimit: '10mb' };
  * Reference: https://docs.claude.com/en/api/agent-sdk/subagents (pattern inspiration)
  */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now(); // Track execution time
+
   try {
     const { messages } = await request.json();
 
@@ -175,6 +178,24 @@ export async function POST(request: NextRequest) {
               console.error(`⚠️ Tool ${call.toolName} (${call.toolCallId}) returned no output!`);
             }
           });
+        }
+      },
+
+      // Monitor total execution time to optimize maxDuration
+      onFinish: ({ response, finishReason }) => {
+        const executionTime = Date.now() - startTime;
+        const executionSeconds = (executionTime / 1000).toFixed(2);
+
+        console.log(`⏱️ Request completed:`, {
+          executionTime: `${executionSeconds}s`,
+          finishReason,
+          toolCallsCount: response.steps?.filter(s => s.toolCalls?.length > 0).length || 0,
+          warningIfSlow: executionTime > 120000 ? '⚠️ Took >2 minutes' : undefined,
+        });
+
+        // Alert if getting close to timeout
+        if (executionTime > 240000) { // 4 minutes (240s)
+          console.warn(`🚨 Request took ${executionSeconds}s - close to 300s timeout!`);
         }
       },
 

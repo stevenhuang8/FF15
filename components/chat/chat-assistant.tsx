@@ -192,6 +192,29 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
         return;
       }
 
+      // Check for tool execution errors (No tool output found)
+      if (error.message?.includes('No tool output found for function call')) {
+        const toolCallId = error.message.match(/call_[a-zA-Z0-9]+/)?.[0];
+        console.error('🔧 Tool execution error detected:', {
+          errorMessage: error.message,
+          toolCallId,
+          messagesCount: rawMessages.length,
+          lastMessage: rawMessages[rawMessages.length - 1],
+        });
+
+        alert(
+          '⚠️ Tool Execution Error\n\n' +
+          'One of the AI tools failed to complete. This can happen due to:\n' +
+          '• Temporary service interruption\n' +
+          '• Database connection issues\n\n' +
+          'Try:\n' +
+          '• Sending your message again\n' +
+          '• Refreshing the page if the problem persists\n' +
+          (toolCallId ? `\nError ID: ${toolCallId}` : '')
+        );
+        return;
+      }
+
       // Handle 413 Payload Too Large errors
       if (error.message?.includes('413') || error.message?.includes('Content Too Large')) {
         alert(

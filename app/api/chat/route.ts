@@ -157,6 +157,27 @@ export async function POST(request: NextRequest) {
         },
       },
 
+      // Tool execution monitoring to debug "No tool output" errors
+      onStepFinish: ({ toolCalls, toolResults, finishReason }) => {
+        if (toolCalls && toolCalls.length > 0) {
+          toolCalls.forEach((call, index) => {
+            const result = toolResults?.[index];
+            console.log(`🔧 Tool executed:`, {
+              toolName: call.toolName,
+              toolCallId: call.toolCallId,
+              hasResult: !!result,
+              resultType: result ? typeof result : 'undefined',
+              finishReason,
+            });
+
+            // Log warning if tool didn't return output
+            if (!result || result === undefined) {
+              console.error(`⚠️ Tool ${call.toolName} (${call.toolCallId}) returned no output!`);
+            }
+          });
+        }
+      },
+
       // All tools available to the agent
       // The orchestrator uses prompt engineering to simulate specialized subagents
       // Subagent definitions in /components/agent/subagents/ provide documentation

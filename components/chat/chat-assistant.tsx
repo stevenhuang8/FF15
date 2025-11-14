@@ -145,7 +145,13 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timezoneOffset = new Date().getTimezoneOffset();
 
+  // Use conversation ID as key to force chat state reset when switching conversations
+  // This prevents orphaned streaming state (rs_... IDs) from previous conversations
+  // causing "Item with id 'rs_...' not found" errors
+  const chatKey = conversationId || 'new-conversation';
+
   const { messages: rawMessages, status, sendMessage, setMessages, error } = useChat({
+    id: chatKey, // Forces AI SDK to reset internal state when conversation changes
     transport: new DefaultChatTransport({
       api: api || '/api/chat', // Default to /api/chat if no custom api provided
       headers: {

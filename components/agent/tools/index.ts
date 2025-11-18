@@ -43,3 +43,15 @@ export { getWorkoutStreakTool } from './get-workout-streak';
 // Structured fitness goal management
 export { createFitnessGoalTool } from './create-fitness-goal';
 export { updateStructuredGoalTool } from './update-structured-goal';
+
+// Subagent delegation tools (multi-agent orchestration)
+export {
+  invokeCookingAssistant,
+  invokeRecipeResearcher,
+  invokeIngredientSpecialist,
+  invokeNutritionAnalyst,
+  invokeMealPlanner,
+  invokePantryManager,
+  invokeWorkoutPlanner,
+  invokeProfileManager,
+} from './subagent-tools';

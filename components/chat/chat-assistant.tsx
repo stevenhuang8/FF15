@@ -346,7 +346,7 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
 
           // Convert saved messages to UI message format
           const uiMessages = savedMessages.map(msg => {
-            // For messages loaded from DB, only include text content
+            // For messages loaded from DB, include text content and attachments
             // Don't include tool calls as they may not have the proper reasoning structure
             // required by GPT-5 and will cause API errors
             const parts: any[] = [];
@@ -359,12 +359,18 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
               });
             }
 
+            // Add file attachments if they exist
+            if (msg.attachments && Array.isArray(msg.attachments)) {
+              parts.push(...msg.attachments);
+            }
+
             console.log(`📝 Loaded message:`, {
               id: msg.id,
               role: msg.role,
               contentLength: msg.content?.length || 0,
               content: msg.content?.substring(0, 100),
-              hasToolCalls: !!msg.tool_calls
+              hasToolCalls: !!msg.tool_calls,
+              hasAttachments: !!msg.attachments
             });
 
             return {
@@ -541,6 +547,10 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
           }
         }
 
+        // Extract file attachments
+        const fileParts = (msg as any).parts?.filter((p: any) => p.type === 'file') || [];
+        const attachments = fileParts.length > 0 ? fileParts : null;
+
         // Debug logging
         console.log(`💾 Saving message:`, {
           id: msg.id,
@@ -548,7 +558,8 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
           contentLength: content.length,
           content: content.substring(0, 100),
           hasToolCalls: !!toolCalls,
-          hasSources: !!sources
+          hasSources: !!sources,
+          hasAttachments: !!attachments
         });
 
         // Only save user and assistant messages (skip system messages if any)
@@ -559,7 +570,8 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
             role: msg.role,
             content,
             toolCalls,
-            sources
+            sources,
+            attachments
           });
 
           if (error) {
@@ -722,22 +734,22 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
                 // Skip tool and reasoning parts - only process text parts
                 // parts.forEach block removed to hide tool calls and reasoning from UI
 
-                // Add the message itself (with only text parts and legacy content)
-                const messageWithTextOnly = {
+                // Add the message itself (with text and file parts, but exclude tool/reasoning parts)
+                const messageWithTextAndFiles = {
                   ...message,
                   parts: parts.filter((part: any) =>
-                    part.type === 'text' || !part.type // include parts without type for backward compatibility
+                    part.type === 'text' || part.type === 'file' || !part.type // include text, files, and legacy parts
                   )
                 };
 
                 // Add message if it has content OR if it's an assistant message during streaming (for placeholder)
-                const hasContent = messageWithTextOnly.parts.length > 0 || !!(message as any).content;
+                const hasContent = messageWithTextAndFiles.parts.length > 0 || !!(message as any).content;
                 const isStreamingAssistant = message.role === 'assistant' && isLoading;
 
                 if (hasContent || isStreamingAssistant) {
                   flowItems.push({
                     type: 'message',
-                    data: messageWithTextOnly,
+                    data: messageWithTextAndFiles,
                     id: `message-${message.id}`
                   });
                 }

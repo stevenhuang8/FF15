@@ -129,6 +129,7 @@ export async function saveMessage(data: {
   content: string;
   toolCalls?: any;
   sources?: any;
+  attachments?: any;
 }): Promise<{ data: Message | null; error: any }> {
   const supabase = createClient();
 
@@ -138,6 +139,7 @@ export async function saveMessage(data: {
     content: data.content,
     tool_calls: data.toolCalls || null,
     sources: data.sources || null,
+    attachments: data.attachments || null,
   };
 
   const { data: message, error } = await supabase

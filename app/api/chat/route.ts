@@ -34,6 +34,15 @@ import {
   // Structured fitness goal management
   createFitnessGoalTool,
   updateStructuredGoalTool,
+  // Subagent delegation tools
+  invokeCookingAssistant,
+  invokeRecipeResearcher,
+  invokeIngredientSpecialist,
+  invokeNutritionAnalyst,
+  invokeMealPlanner,
+  invokePantryManager,
+  invokeWorkoutPlanner,
+  invokeProfileManager,
 } from "@/components/agent/tools";
 import { SUBAGENTS } from "@/components/agent/subagents";
 import { openai } from "@ai-sdk/openai";
@@ -48,11 +57,11 @@ export const maxDuration = 300; // 300 seconds (5 min) for complex AI processing
 export const bodyParser = { sizeLimit: '10mb' };
 
 /**
- * Main Chat API Route with Multi-Agent Architecture Pattern
+ * Main Chat API Route with True Multi-Agent Orchestration (GPT-5.1)
  *
- * This endpoint implements a multi-agent pattern using an orchestrator that embodies
- * 7 specialized agent personas through prompt engineering and intelligent tool usage:
+ * This endpoint implements TRUE subagents using the tool-based delegation pattern:
  *
+ * 8 Specialized Subagents (each runs its own streamText with isolated context):
  * - cooking-assistant: Real-time cooking guidance and techniques
  * - recipe-researcher: Deep research on dishes, cuisines, and history
  * - ingredient-specialist: Ingredient substitutions and alternatives
@@ -60,14 +69,19 @@ export const bodyParser = { sizeLimit: '10mb' };
  * - meal-planner: Weekly meal planning and batch cooking
  * - pantry-manager: Pantry-based recipe suggestions
  * - workout-planner: Personalized fitness routines
+ * - profile-manager: User preferences and goals management
  *
- * The orchestrator uses context-aware prompt switching and strategic tool selection
- * to provide specialized expertise while maintaining conversation continuity.
+ * The main orchestrator (GPT-5.1) automatically delegates to specialized subagents
+ * by calling invokeCookingAssistant, invokeRecipeResearcher, etc. as tools.
+ * Each subagent runs in its own context with restricted tools for focused expertise.
  *
- * Note: Subagent definitions in components/agent/subagents/ serve as documentation
- * and can be used if migrating to Claude's Agent SDK in the future.
+ * Benefits:
+ * - True context isolation per subagent
+ * - Automatic delegation based on task description
+ * - Tool restrictions per subagent for security and focus
+ * - Stream merging for seamless user experience
  *
- * Reference: https://docs.claude.com/en/api/agent-sdk/subagents (pattern inspiration)
+ * Implementation: /components/agent/tools/subagent-tools.ts
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now(); // Track execution time
@@ -141,19 +155,19 @@ export async function POST(request: NextRequest) {
       .replace("{{CURRENT_TIME}}", formattedTime);
 
     const result = streamText({
-      model: openai("gpt-5"),
+      model: openai("gpt-5.1"), // ✅ Upgraded to GPT-5.1 for faster adaptive reasoning
       system: systemPromptWithUserContext,
       messages: modelMessages,
 
       // Enable multi-step reasoning for complex orchestration
       // Allows agent to use multiple tools and coordinate responses
-      // Increased from 15 to 30 for better multi-domain query handling
+      // Increased from 15 to 30 for multi-agent subagent delegation
       stopWhen: stepCountIs(30),
 
       providerOptions: {
         openai: {
-          // Increased from "low" to "medium" for better quality reasoning (+10-15% quality)
-          // Note: GPT-5 is a reasoning model - temperature is not supported
+          // GPT-5.1 uses adaptive reasoning - automatically decides when to think deeply
+          // "medium" effort for balanced quality and latency
           reasoning_effort: "medium",
           textVerbosity: "low",
           reasoningSummary: "detailed",
@@ -199,11 +213,29 @@ export async function POST(request: NextRequest) {
         }
       },
 
-      // All tools available to the agent
-      // The orchestrator uses prompt engineering to simulate specialized subagents
-      // Subagent definitions in /components/agent/subagents/ provide documentation
-      // for future migration to Claude's Agent SDK when available in Vercel AI SDK
+      // All tools available to the orchestrator
+      // Main orchestrator can delegate to subagents OR use tools directly
       tools: {
+        // ========================================
+        // SUBAGENT DELEGATION TOOLS (NEW!)
+        // ========================================
+        // Each subagent runs its own GPT-5.1 instance with isolated context
+        // The orchestrator automatically chooses which subagent based on task description
+        invokeCookingAssistant,
+        invokeRecipeResearcher,
+        invokeIngredientSpecialist,
+        invokeNutritionAnalyst,
+        invokeMealPlanner,
+        invokePantryManager,
+        invokeWorkoutPlanner,
+        invokeProfileManager,
+
+        // ========================================
+        // DIRECT TOOLS (also available to orchestrator)
+        // ========================================
+        // Orchestrator can use these directly for simple tasks
+        // or subagents will use them when delegated to
+
         // RAG knowledge base
         retrieveKnowledgeBase: retrieveKnowledgeBaseSimple,
 

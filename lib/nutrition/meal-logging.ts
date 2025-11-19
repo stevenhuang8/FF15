@@ -151,31 +151,44 @@ export async function getTodaysMealLogs(
   const supabase = createClient();
 
   try {
-    // Create start and end of day in local timezone, then convert to ISO (UTC)
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const today = new Date();
+    const todayStr = formatDateForDB(today);
 
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    console.log(`🔍 Fetching meals for date: ${todayStr} (local time)`);
 
-    const startISO = startOfDay.toISOString();
-    const endISO = endOfDay.toISOString();
+    // TIMEZONE-SAFE QUERY: Query 48 hours around today to ensure we capture
+    // all meals regardless of timezone, then filter by local date in JavaScript
+    const dayBefore = new Date(today);
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    dayBefore.setHours(0, 0, 0, 0);
 
-    console.log(`🔍 Fetching meals between ${startISO} and ${endISO}`);
+    const dayAfter = new Date(today);
+    dayAfter.setDate(dayAfter.getDate() + 1);
+    dayAfter.setHours(23, 59, 59, 999);
 
-    // Query for all meals in today's date range (local timezone)
-    const { data, error } = await supabase
+    // Query for all meals in a wide date range
+    const { data: allMeals, error } = await supabase
       .from('meal_logs')
       .select('*')
       .eq('user_id', userId)
-      .gte('logged_at', startISO)
-      .lte('logged_at', endISO)
+      .gte('logged_at', dayBefore.toISOString())
+      .lte('logged_at', dayAfter.toISOString())
       .order('logged_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching today\'s meal logs:', error);
       return { data: null, error };
     }
+
+    // Filter to only meals that match today's date in LOCAL timezone
+    // This prevents timezone conversion bugs that cause carryover from adjacent days
+    const data = (allMeals || []).filter((meal: any) => {
+      const mealDate = new Date(meal.logged_at);
+      const mealDateStr = formatDateForDB(mealDate);
+      return mealDateStr === todayStr;
+    });
+
+    console.log(`✅ Found ${data.length} meals for today (filtered from ${allMeals?.length || 0} total)`);
 
     // Map snake_case database fields to camelCase TypeScript types
     const mappedData: MealLog[] = (data || []).map((row: any) => ({
@@ -322,30 +335,43 @@ export async function updateDailyCalorieTracking(
   const supabase = supabaseClient || createClient();
 
   try {
-    // Create proper date range in local timezone, then convert to UTC for query
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
     // Format date string for database record (YYYY-MM-DD in local timezone)
     const dateStr = formatDateForDB(date);
 
     console.log(`📅 Updating daily tracking for date: ${dateStr} (local time)`);
 
-    // Get total calories from meals for this day
-    const { data: meals, error: mealsError } = await supabase
+    // TIMEZONE-SAFE QUERY: Query 48 hours around target date to ensure we capture
+    // all meals regardless of timezone, then filter by local date in JavaScript
+    const dayBefore = new Date(date);
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    dayBefore.setHours(0, 0, 0, 0);
+
+    const dayAfter = new Date(date);
+    dayAfter.setDate(dayAfter.getDate() + 1);
+    dayAfter.setHours(23, 59, 59, 999);
+
+    // Get total calories from meals for a wide range
+    const { data: allMeals, error: mealsError } = await supabase
       .from('meal_logs')
-      .select('total_calories, total_protein, total_carbs, total_fats')
+      .select('total_calories, total_protein, total_carbs, total_fats, logged_at')
       .eq('user_id', userId)
-      .gte('logged_at', startOfDay.toISOString())
-      .lte('logged_at', endOfDay.toISOString());
+      .gte('logged_at', dayBefore.toISOString())
+      .lte('logged_at', dayAfter.toISOString());
 
     if (mealsError) {
       console.error('Error fetching meals:', mealsError);
       return { data: null, error: mealsError };
     }
+
+    // Filter to only meals that match the target date in LOCAL timezone
+    // This prevents timezone conversion bugs that cause carryover from adjacent days
+    const meals = (allMeals || []).filter((meal: any) => {
+      const mealDate = new Date(meal.logged_at);
+      const mealDateStr = formatDateForDB(mealDate);
+      return mealDateStr === dateStr;
+    });
+
+    console.log(`🔍 Found ${meals.length} meals for ${dateStr} (filtered from ${allMeals?.length || 0} total)`);
 
     // Calculate totals consumed
     const totalsConsumed = (meals || []).reduce(
@@ -358,18 +384,25 @@ export async function updateDailyCalorieTracking(
       { calories: 0, protein: 0, carbs: 0, fats: 0 }
     );
 
-    // Get total calories burned from workouts
-    const { data: workouts, error: workoutsError } = await supabase
+    // Get total calories burned from workouts (using same timezone-safe approach)
+    const { data: allWorkouts, error: workoutsError } = await supabase
       .from('workout_logs')
-      .select('calories_burned')
+      .select('calories_burned, completed_at')
       .eq('user_id', userId)
-      .gte('completed_at', startOfDay.toISOString())
-      .lte('completed_at', endOfDay.toISOString());
+      .gte('completed_at', dayBefore.toISOString())
+      .lte('completed_at', dayAfter.toISOString());
 
     if (workoutsError) {
       console.error('Error fetching workouts:', workoutsError);
       // Continue without workout data
     }
+
+    // Filter workouts to match target date in LOCAL timezone
+    const workouts = (allWorkouts || []).filter((workout: any) => {
+      const workoutDate = new Date(workout.completed_at);
+      const workoutDateStr = formatDateForDB(workoutDate);
+      return workoutDateStr === dateStr;
+    });
 
     const totalCaloriesBurned = (workouts || []).reduce(
       (acc: number, workout: any) => acc + (workout.calories_burned || 0),

@@ -360,6 +360,7 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachments: Json | null
           content: string
           conversation_id: string
           created_at: string | null
@@ -369,6 +370,7 @@ export type Database = {
           tool_calls: Json | null
         }
         Insert: {
+          attachments?: Json | null
           content: string
           conversation_id: string
           created_at?: string | null
@@ -378,6 +380,7 @@ export type Database = {
           tool_calls?: Json | null
         }
         Update: {
+          attachments?: Json | null
           content?: string
           conversation_id?: string
           created_at?: string | null

@@ -10,6 +10,7 @@ import { searchAndParseFoods, scaleNutrition } from '@/lib/nutrition/usda-api';
 import { estimateNutritionWithAI } from '@/lib/nutrition/ai-nutrition-estimator';
 import { createClient } from '@/lib/supabase/server';
 import type { FoodItem, MealType } from '@/lib/nutrition/types';
+import { parseNaturalDate, validateWorkoutDate, formatLocalDate } from '@/lib/utils';
 
 /**
  * Tool for logging meals with automatic nutrition lookup
@@ -17,6 +18,12 @@ import type { FoodItem, MealType } from '@/lib/nutrition/types';
  */
 const logMealSchema = z.object({
   userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
+  mealDate: z
+    .string()
+    .optional()
+    .describe(
+      'The date this meal was consumed. CRITICAL: Extract from user context like "today", "yesterday", "this morning", "2 days ago", etc. If user mentions multiple meals for different days, log each with its correct date. If not specified, defaults to today.'
+    ),
   mealType: z
     .enum(['breakfast', 'lunch', 'dinner', 'snack'])
     .describe('Type of meal'),
@@ -36,7 +43,7 @@ export const logMealPreview = tool({
   description:
     'Log a meal with automatic nutrition data lookup. Searches USDA database or uses AI estimates for nutrition info. IMPORTANT: This tool returns a PREVIEW. Ask user to CONFIRM before calling confirmMealLog.',
   inputSchema: logMealSchema,
-  execute: async ({ userId, mealType, foodItems, notes }: z.infer<typeof logMealSchema>) => {
+  execute: async ({ userId, mealDate, mealType, foodItems, notes }: z.infer<typeof logMealSchema>) => {
     console.log(`🍽️ Preparing meal log for user ${userId}: ${mealType} with ${foodItems.length} items`);
 
     try {
@@ -46,6 +53,32 @@ export const logMealPreview = tool({
           success: false,
           error: 'User ID is required but was not provided.',
         };
+      }
+
+      // Parse and validate meal date
+      let parsedDate: Date;
+      if (mealDate) {
+        const parsed = parseNaturalDate(mealDate);
+        if (!parsed) {
+          return {
+            success: false,
+            error: `Could not parse meal date "${mealDate}". Please use formats like "today", "yesterday", "Monday", "2 days ago", or "Nov 23".`,
+          };
+        }
+        parsedDate = parsed;
+
+        // Validate the date
+        const validation = validateWorkoutDate(parsedDate);
+        if (!validation.valid) {
+          return {
+            success: false,
+            error: validation.error,
+          };
+        }
+      } else {
+        // Default to today
+        parsedDate = new Date();
+        parsedDate.setHours(0, 0, 0, 0); // Start of day
       }
 
       // Look up nutrition for each food item
@@ -122,11 +155,20 @@ export const logMealPreview = tool({
       const totalCarbs = foodItemsWithNutrition.reduce((sum: number, item) => sum + (item.carbs || 0), 0);
       const totalFats = foodItemsWithNutrition.reduce((sum: number, item) => sum + (item.fats || 0), 0);
 
+      // Format date for display
+      const formattedDate = formatLocalDate(parsedDate, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
       // Return PREVIEW - don't save yet, wait for confirmation
       return {
         success: true,
         preview: true,
         mealType,
+        mealDate: parsedDate.toISOString(), // Store as ISO for confirmMealLog
         foodItems: foodItemsWithNutrition,
         notes,
         totals: {
@@ -136,8 +178,11 @@ export const logMealPreview = tool({
           fats: Math.round(totalFats * 10) / 10,
         },
         nutritionLookupDetails,
-        message: `Ready to log ${mealType}:\n${nutritionLookupDetails.join('\n')}\n\nTotals: ${Math.round(totalCalories)} cal, ${Math.round(totalProtein)}g protein, ${Math.round(totalCarbs)}g carbs, ${Math.round(totalFats)}g fats\n\nPlease ask the user to CONFIRM before saving.`,
+        message: `Ready to log ${mealType}:\n\nDate: ${formattedDate}\n${nutritionLookupDetails.join('\n')}\n\nTotals: ${Math.round(totalCalories)} cal, ${Math.round(totalProtein)}g protein, ${Math.round(totalCarbs)}g carbs, ${Math.round(totalFats)}g fats\n\nPlease ask the user to CONFIRM before saving.`,
         userId: userId,
+        assumptions: {
+          ...(mealDate ? {} : { date: `Assumed today (${formattedDate})` }),
+        },
       };
     } catch (error) {
       console.error('❌ Error in logMealPreview tool:', error);
@@ -154,6 +199,7 @@ export const logMealPreview = tool({
  */
 const confirmMealLogSchema = z.object({
   userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
+  mealDate: z.string().optional().describe('ISO date string for meal date (from preview)'),
   mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
   foodItems: z.array(
     z.object({
@@ -173,7 +219,7 @@ export const confirmMealLog = tool({
   description:
     'Confirm and save meal log after user approves the preview. Only call this after logMealPreview and user confirmation.',
   inputSchema: confirmMealLogSchema,
-  execute: async ({ userId, mealType, foodItems, notes }: z.infer<typeof confirmMealLogSchema>) => {
+  execute: async ({ userId, mealDate, mealType, foodItems, notes }: z.infer<typeof confirmMealLogSchema>) => {
     console.log(`✅ Confirming meal log for user ${userId}: ${mealType}`);
 
     try {
@@ -185,6 +231,12 @@ export const confirmMealLog = tool({
         };
       }
 
+      // Parse meal date if provided
+      let consumedAt: Date | undefined;
+      if (mealDate) {
+        consumedAt = new Date(mealDate);
+      }
+
       // Save meal log
       const supabase = await createClient();
       const { data: mealLog, error } = await createMealLog(supabase, {
@@ -192,6 +244,7 @@ export const confirmMealLog = tool({
         mealType: mealType as MealType,
         foodItems: foodItems as FoodItem[],
         notes,
+        consumedAt, // Pass the meal date
       });
 
       if (error) {

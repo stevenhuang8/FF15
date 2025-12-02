@@ -146,3 +146,142 @@ export function isValidUUID(value: string | undefined | null): boolean {
 
   return uuidRegex.test(value)
 }
+
+// ============================================================================
+// Natural Language Date Parsing
+// ============================================================================
+
+/**
+ * Parses natural language date strings into Date objects
+ * Supports relative dates (today, yesterday, X days ago) and day names (Monday, Tuesday, etc.)
+ *
+ * @param dateString - Natural language date string
+ * @returns Date object or null if parsing fails
+ *
+ * @example
+ * parseNaturalDate("today") // Today's date
+ * parseNaturalDate("yesterday") // Yesterday's date
+ * parseNaturalDate("2 days ago") // 2 days before today
+ * parseNaturalDate("Monday") // Most recent Monday (including today if today is Monday)
+ * parseNaturalDate("Nov 23") // November 23 of current year
+ * parseNaturalDate("2025-11-23") // ISO date format
+ */
+export function parseNaturalDate(dateString: string): Date | null {
+  if (!dateString) return null
+
+  const normalized = dateString.toLowerCase().trim()
+  const now = new Date()
+
+  // Set to start of day (midnight local time)
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Handle "today"
+  if (normalized === 'today') {
+    return startOfToday
+  }
+
+  // Handle "yesterday"
+  if (normalized === 'yesterday') {
+    const yesterday = new Date(startOfToday)
+    yesterday.setDate(yesterday.getDate() - 1)
+    return yesterday
+  }
+
+  // Handle "X days ago" (e.g., "2 days ago", "3 days ago")
+  const daysAgoMatch = normalized.match(/^(\d+)\s+days?\s+ago$/)
+  if (daysAgoMatch) {
+    const daysAgo = parseInt(daysAgoMatch[1], 10)
+    const date = new Date(startOfToday)
+    date.setDate(date.getDate() - daysAgo)
+    return date
+  }
+
+  // Handle day names (Monday, Tuesday, etc.)
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+  const dayIndex = dayNames.indexOf(normalized)
+  if (dayIndex !== -1) {
+    const result = new Date(startOfToday)
+    const currentDay = result.getDay()
+    const daysToSubtract = currentDay >= dayIndex ? currentDay - dayIndex : 7 - (dayIndex - currentDay)
+    result.setDate(result.getDate() - daysToSubtract)
+    return result
+  }
+
+  // Handle "Nov 23" or "November 23" format
+  const monthDayMatch = normalized.match(/^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?$/)
+  if (monthDayMatch) {
+    const monthNames = [
+      'january', 'february', 'march', 'april', 'may', 'june',
+      'july', 'august', 'september', 'october', 'november', 'december'
+    ]
+    const monthAbbreviations = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+
+    const monthString = monthDayMatch[1]
+    const day = parseInt(monthDayMatch[2], 10)
+
+    let monthIndex = monthNames.indexOf(monthString)
+    if (monthIndex === -1) {
+      monthIndex = monthAbbreviations.indexOf(monthString)
+    }
+
+    if (monthIndex !== -1 && day >= 1 && day <= 31) {
+      const year = now.getFullYear()
+      return new Date(year, monthIndex, day)
+    }
+  }
+
+  // Handle ISO date format (YYYY-MM-DD)
+  const isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (isoMatch) {
+    return parseLocalDate(dateString)
+  }
+
+  // Handle MM/DD/YYYY format
+  const usDateMatch = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (usDateMatch) {
+    const month = parseInt(usDateMatch[1], 10) - 1
+    const day = parseInt(usDateMatch[2], 10)
+    const year = parseInt(usDateMatch[3], 10)
+    return new Date(year, month, day)
+  }
+
+  // If nothing matches, return null
+  return null
+}
+
+/**
+ * Validates a date for workout logging
+ * Ensures date is not in the future and not too far in the past
+ *
+ * @param date - Date to validate
+ * @param maxDaysInPast - Maximum number of days in the past allowed (default: 365)
+ * @returns Validation result with success flag and error message
+ */
+export function validateWorkoutDate(
+  date: Date,
+  maxDaysInPast: number = 365
+): { valid: boolean; error?: string } {
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Check if date is in the future
+  if (date > startOfToday) {
+    return {
+      valid: false,
+      error: "Workout date cannot be in the future. You can't log workouts that haven't happened yet!"
+    }
+  }
+
+  // Check if date is too far in the past
+  const maxPastDate = new Date(startOfToday)
+  maxPastDate.setDate(maxPastDate.getDate() - maxDaysInPast)
+
+  if (date < maxPastDate) {
+    return {
+      valid: false,
+      error: `Workout date cannot be more than ${maxDaysInPast} days in the past.`
+    }
+  }
+
+  return { valid: true }
+}

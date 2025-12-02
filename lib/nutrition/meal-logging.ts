@@ -31,6 +31,9 @@ export async function createMealLog(
     // Calculate totals from food items
     const totals = calculateTotalNutrition(input.foodItems);
 
+    // Use provided consumedAt date or default to current time
+    const mealDate = input.consumedAt || new Date();
+
     const mealData = {
       user_id: input.userId,
       meal_type: input.mealType,
@@ -41,6 +44,7 @@ export async function createMealLog(
       total_carbs: totals.totalCarbs,
       total_fats: totals.totalFats,
       notes: input.notes || null,
+      logged_at: mealDate.toISOString(), // Set the meal log date
     };
 
     const { data, error } = await supabase
@@ -54,10 +58,11 @@ export async function createMealLog(
       return { data: null, error };
     }
 
-    console.log('✅ Meal logged successfully:', data.id);
+    console.log('✅ Meal logged successfully:', data.id, 'for date:', mealDate.toISOString());
 
     // Update daily calorie tracking (pass the authenticated supabase client)
-    await updateDailyCalorieTracking(input.userId, new Date(), supabase);
+    // Use the meal date for calorie tracking, not "now"
+    await updateDailyCalorieTracking(input.userId, mealDate, supabase);
 
     // Map snake_case database fields to camelCase TypeScript types
     const mappedData: MealLog = {

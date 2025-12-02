@@ -7,6 +7,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { logWorkout } from '@/lib/supabase/workouts';
 import { createClient } from '@/lib/supabase/server';
+import { parseNaturalDate, validateWorkoutDate, formatLocalDate } from '@/lib/utils';
 
 /**
  * Tool for logging completed workouts
@@ -14,6 +15,12 @@ import { createClient } from '@/lib/supabase/server';
  */
 const logWorkoutSchema = z.object({
   userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
+  workoutDate: z
+    .string()
+    .optional()
+    .describe(
+      'The date this workout was completed. CRITICAL: Extract from user context like "today", "yesterday", "Monday", "2 days ago", "Nov 23", etc. If user mentions multiple workouts for different days, log each with its correct date. If not specified, defaults to today.'
+    ),
   title: z
     .string()
     .describe('Title/name of the workout (e.g., "Morning Run", "Leg Day", "Yoga Session")'),
@@ -51,6 +58,7 @@ export const logWorkoutPreview = tool({
   inputSchema: logWorkoutSchema,
   execute: async ({
     userId,
+    workoutDate,
     title,
     exercises,
     totalDurationMinutes,
@@ -66,6 +74,32 @@ export const logWorkoutPreview = tool({
           success: false,
           error: 'User ID is required but was not provided.',
         };
+      }
+
+      // Parse and validate workout date
+      let parsedDate: Date;
+      if (workoutDate) {
+        const parsed = parseNaturalDate(workoutDate);
+        if (!parsed) {
+          return {
+            success: false,
+            error: `Could not parse workout date "${workoutDate}". Please use formats like "today", "yesterday", "Monday", "2 days ago", or "Nov 23".`,
+          };
+        }
+        parsedDate = parsed;
+
+        // Validate the date
+        const validation = validateWorkoutDate(parsedDate);
+        if (!validation.valid) {
+          return {
+            success: false,
+            error: validation.error,
+          };
+        }
+      } else {
+        // Default to today
+        parsedDate = new Date();
+        parsedDate.setHours(0, 0, 0, 0); // Start of day
       }
 
       // Calculate total duration if not provided
@@ -107,6 +141,14 @@ export const logWorkoutPreview = tool({
         return parts.join(' ');
       });
 
+      // Format date for display
+      const formattedDate = formatLocalDate(parsedDate, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
       // Return PREVIEW - don't save yet, wait for confirmation
       return {
         success: true,
@@ -118,11 +160,13 @@ export const logWorkoutPreview = tool({
           intensity,
           estimatedCalories,
           notes,
+          workoutDate: parsedDate.toISOString(), // Store as ISO for confirmWorkoutLog
         },
         exerciseSummary,
-        message: `Ready to log workout: "${title}"\n\nExercises:\n${exerciseSummary.map(s => `- ${s}`).join('\n')}\n\nDuration: ${calculatedDuration} min\nIntensity: ${intensity}\nEstimated calories burned: ~${estimatedCalories} cal\n\nPlease ask the user to CONFIRM before saving.`,
+        message: `Ready to log workout: "${title}"\n\nDate: ${formattedDate}\nExercises:\n${exerciseSummary.map(s => `- ${s}`).join('\n')}\n\nDuration: ${calculatedDuration} min\nIntensity: ${intensity}\nEstimated calories burned: ~${estimatedCalories} cal\n\nPlease ask the user to CONFIRM before saving.`,
         userId: userId,
         assumptions: {
+          ...(workoutDate ? {} : { date: `Assumed today (${formattedDate})` }),
           ...(totalDurationMinutes ? {} : { duration: `Assumed ${calculatedDuration} minutes (not specified)` }),
           ...(overallIntensity ? {} : { intensity: 'Assumed medium intensity (not specified)' }),
         },
@@ -142,6 +186,7 @@ export const logWorkoutPreview = tool({
  */
 const confirmWorkoutLogSchema = z.object({
   userId: z.string().describe('User ID (provided by system - REQUIRED for authentication)'),
+  workoutDate: z.string().optional().describe('ISO date string for workout completion date (from preview)'),
   title: z.string(),
   exercises: z.array(z.any()).describe('Exercises performed (from preview)'),
   totalDurationMinutes: z.number(),
@@ -156,6 +201,7 @@ export const confirmWorkoutLog = tool({
   inputSchema: confirmWorkoutLogSchema,
   execute: async ({
     userId,
+    workoutDate,
     title,
     exercises,
     totalDurationMinutes,
@@ -174,6 +220,12 @@ export const confirmWorkoutLog = tool({
         };
       }
 
+      // Parse workout date if provided
+      let completedAt: Date | undefined;
+      if (workoutDate) {
+        completedAt = new Date(workoutDate);
+      }
+
       // Save workout log
       const supabase = await createClient();
       const { data: workoutLog, error } = await logWorkout(supabase, {
@@ -184,6 +236,7 @@ export const confirmWorkoutLog = tool({
         caloriesBurned: estimatedCalories,
         intensity,
         notes,
+        completedAt, // Pass the workout date
       });
 
       if (error) {
@@ -193,11 +246,16 @@ export const confirmWorkoutLog = tool({
         };
       }
 
+      // Format date for success message
+      const dateMessage = completedAt
+        ? ` for ${formatLocalDate(completedAt, { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : '';
+
       return {
         success: true,
         saved: true,
         workoutLog,
-        message: `✅ Workout "${title}" logged successfully! ${totalDurationMinutes} minutes, ${estimatedCalories} calories burned (${intensity} intensity).`,
+        message: `✅ Workout "${title}" logged successfully${dateMessage}! ${totalDurationMinutes} minutes, ${estimatedCalories} calories burned (${intensity} intensity).`,
       };
     } catch (error) {
       console.error('❌ Error confirming workout log:', error);

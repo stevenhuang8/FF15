@@ -224,9 +224,13 @@ export async function logWorkout(
     caloriesBurned?: number;
     intensity: 'low' | 'medium' | 'high';
     notes?: string;
+    completedAt?: Date; // NEW: Optional date for when workout was completed
   }
 ) {
   try {
+    // Use provided completedAt date or default to current time
+    const workoutDate = params.completedAt || new Date();
+
     const { data, error } = await supabase
       .from('workout_logs')
       .insert({
@@ -238,6 +242,7 @@ export async function logWorkout(
         calories_burned: params.caloriesBurned || null,
         intensity: params.intensity,
         notes: params.notes || null,
+        completed_at: workoutDate.toISOString(), // NEW: Set the completion date
       })
       .select()
       .single();
@@ -247,11 +252,12 @@ export async function logWorkout(
       return { data: null, error };
     }
 
-    console.log('✅ Workout logged successfully:', data.id);
+    console.log('✅ Workout logged successfully:', data.id, 'for date:', workoutDate.toISOString());
 
     // Update daily calorie tracking (pass the authenticated supabase client)
+    // Use the workout date for calorie tracking, not "now"
     const { updateDailyCalorieTracking } = await import('@/lib/nutrition/meal-logging');
-    await updateDailyCalorieTracking(params.userId, new Date(), supabase);
+    await updateDailyCalorieTracking(params.userId, workoutDate, supabase);
 
     return { data, error: null };
   } catch (error) {

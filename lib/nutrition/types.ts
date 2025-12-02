@@ -114,6 +114,7 @@ export interface CreateMealLogInput {
   recipeId?: string;
   imageUrl?: string;
   notes?: string;
+  consumedAt?: Date; // Optional date for when the meal was consumed
 }
 
 // ============================================================================

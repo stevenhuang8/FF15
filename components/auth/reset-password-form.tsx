@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { updatePassword } from '@/lib/supabase/auth-helpers'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -34,8 +35,11 @@ type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>
 
 export function ResetPasswordForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [isValidSession, setIsValidSession] = useState(false)
+  const [isChecking, setIsChecking] = useState(true)
 
   const form = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
@@ -44,6 +48,33 @@ export function ResetPasswordForm() {
       confirmPassword: '',
     },
   })
+
+  // Verify user has a valid recovery session
+  useEffect(() => {
+    const verifyRecoverySession = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+        if (sessionError || !session) {
+          setError('No active recovery session. Please request a new password reset link.')
+          setIsValidSession(false)
+          setIsChecking(false)
+          return
+        }
+
+        // Session exists, allow password reset
+        setIsValidSession(true)
+        setIsChecking(false)
+      } catch (err) {
+        setError('Failed to verify session. Please try again.')
+        setIsValidSession(false)
+        setIsChecking(false)
+      }
+    }
+
+    verifyRecoverySession()
+  }, [])
 
   async function onSubmit(data: ResetPasswordFormValues) {
     try {
@@ -64,6 +95,50 @@ export function ResetPasswordForm() {
         setError('Failed to reset password. Please try again.')
       }
     }
+  }
+
+  // Show loading state while checking session
+  if (isChecking) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle>Reset Password</CardTitle>
+          <CardDescription>Verifying your session...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center p-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Show error if no valid session
+  if (!isValidSession) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle>Reset Password</CardTitle>
+          <CardDescription>Session validation failed</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {error && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            <Button
+              onClick={() => router.push('/forgot-password')}
+              className="w-full"
+            >
+              Request New Reset Link
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (

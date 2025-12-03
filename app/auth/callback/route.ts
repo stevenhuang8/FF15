@@ -37,6 +37,13 @@ export async function GET(request: NextRequest) {
         console.error('Error exchanging code for session:', error)
         return NextResponse.redirect(`${origin}/login?error=auth_code_error`)
       }
+
+      // Check if this is a password recovery flow
+      const isRecovery = requestUrl.searchParams.get('recovery') === 'true'
+      if (isRecovery) {
+        console.log('Password recovery flow detected, redirecting to reset-password page')
+        return NextResponse.redirect(`${origin}/reset-password`)
+      }
     }
 
     // Handle token hash verification (email confirmation, password reset)
@@ -56,6 +63,7 @@ export async function GET(request: NextRequest) {
         // Redirect based on verification type
         if (type === 'recovery') {
           // Password reset - send to password reset page
+          // Session is created but user must still set a new password
           return NextResponse.redirect(`${origin}/reset-password`)
         }
 

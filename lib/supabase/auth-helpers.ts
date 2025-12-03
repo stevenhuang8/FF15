@@ -75,7 +75,7 @@ export async function resetPassword(email: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${baseUrl}/auth/callback`,
+    redirectTo: `${baseUrl}/auth/callback?recovery=true`,
   })
 
   if (error) {

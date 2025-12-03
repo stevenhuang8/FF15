@@ -25,13 +25,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const type = searchParams.get('type')
 
-    // Build query with left join to admin_users for user names
+    // Build query to get all feedback
     let query = supabase
       .from('feedback')
-      .select(`
-        *,
-        admin_users!left(display_name, email)
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
 
     // Apply filters
@@ -49,15 +46,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch feedback' }, { status: 500 })
     }
 
-    // Transform response to flatten admin_users data
-    const transformedFeedback = feedbackList?.map((item: any) => ({
-      ...item,
-      user_name: item.admin_users?.display_name || null,
-      user_email: item.admin_users?.email || null,
-      admin_users: undefined, // Remove nested object
-    }))
-
-    return NextResponse.json({ feedback: transformedFeedback })
+    return NextResponse.json({ feedback: feedbackList })
   } catch (error) {
     console.error('❌ Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

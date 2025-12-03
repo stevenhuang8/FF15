@@ -2,7 +2,7 @@
  * Admin Authentication Helper
  */
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 /**
  * Check if the current user is an admin
@@ -21,8 +21,9 @@ export async function isUserAdmin(): Promise<boolean> {
       return false
     }
 
-    // Check if user is in admin_users table
-    const { data, error } = await supabase
+    // Use service client to query admin_users (bypasses RLS)
+    const serviceClient = await createServiceClient()
+    const { data, error } = await serviceClient
       .from('admin_users')
       .select('user_id')
       .eq('user_id', user.id)

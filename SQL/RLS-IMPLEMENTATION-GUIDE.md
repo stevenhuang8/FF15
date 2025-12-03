@@ -165,33 +165,70 @@ VALUES ('non-admin-user-uuid', 'Hacker', 'hacker@example.com');
 - **Error Code**: `42501` (insufficient privilege)
 - **No row inserted**: `INSERT 0 0`
 
-#### Method 2: Supabase Dashboard Testing
+#### Method 2: Application-Based Testing (Via Your App)
 
-**Step-by-step**:
+**⚠️ IMPORTANT**: The Supabase Dashboard Table Editor uses admin privileges and **may bypass RLS**. For true RLS testing, you must test **through your application** using authenticated Supabase clients.
 
-1. **Login as non-admin user**:
-   - Ensure you're authenticated as a user who is NOT in `admin_users` table
-   - You can verify by checking: Dashboard → Table Editor → admin_users
+**Option A: Via Browser Console (Recommended for Manual Testing)**
 
-2. **Attempt to insert via Table Editor**:
-   - Navigate to: Table Editor → `admin_users` table
-   - Click **Insert Row** button
-   - Fill in fields:
-     - `user_id`: Your non-admin user UUID
-     - `display_name`: "Test Admin"
-     - `email`: "test@example.com"
-   - Click **Save**
+1. **Open your application** in a browser and login as a **non-admin user**
 
-3. **Expected Result**:
-   - **Error dialog appears**: "Failed to insert row"
+2. **Open browser DevTools** (F12) → Console tab
+
+3. **Run this code** to test INSERT:
+   ```javascript
+   // Get the Supabase client from your app
+   // (Assuming you have it available globally or can import it)
+   const supabase = window.supabase || (await import('./lib/supabase/client')).default
+
+   // Attempt to insert as non-admin (should fail)
+   const { data, error } = await supabase
+     .from('admin_users')
+     .insert({
+       user_id: crypto.randomUUID(),
+       display_name: 'Hacker Admin',
+       email: 'hacker@test.com'
+     })
+
+   console.log('Error:', error)
+   console.log('Data:', data)
+   // Expected: error.code === 'PGRST301' (RLS policy violation)
+   // Expected: data === null
+   ```
+
+4. **Expected Result**:
+   - **Error appears**: `code: "PGRST301"`
    - **Error message**: "new row violates row-level security policy"
-   - **No row created** in the table
+   - **Data is null**: No row was inserted
 
-4. **Verification**:
-   - Refresh the table view
-   - Confirm no new admin row was added
+**Option B: Via Custom API Route (If You Build One)**
 
-**Note**: If the insert succeeds, RLS is not properly enabled. See Troubleshooting section.
+If you create an admin management endpoint in your application:
+
+```bash
+# Login to your app as non-admin and get JWT token
+export JWT_TOKEN="your-non-admin-jwt-token"
+
+# Try to add admin via your API
+curl -X POST 'http://localhost:3000/api/admin/users' \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"user_id": "uuid-here", "action": "add_admin"}'
+
+# Expected: 401 Unauthorized or 403 Forbidden
+# Your API route should call isUserAdmin() which will return false
+```
+
+**Option C: Supabase Dashboard Table Editor (Limited)**
+
+⚠️ **Warning**: This method is **unreliable** for RLS testing because the Dashboard may use service role privileges.
+
+- Navigate to: Supabase Dashboard → Table Editor → `admin_users`
+- Try to insert a row
+- The Dashboard likely has **admin access** and **bypasses RLS policies**
+- **Not recommended** for true RLS validation
+
+**Recommendation**: Use **Option A (Browser Console)** or **Method 3 (Automated Tests)** for accurate RLS testing.
 
 #### Method 3: Automated Integration Test
 
@@ -440,46 +477,96 @@ EXISTS (SELECT 1 FROM admin_users WHERE user_id = auth.uid())
 - **New row created** in `admin_users` table
 - **No errors**
 
-#### Method 2: Supabase Dashboard Testing
+#### Method 2: Application-Based Testing (Via Your App)
 
-**Step-by-step**:
+**⚠️ IMPORTANT**: The Supabase Dashboard Table Editor uses admin privileges and **may bypass RLS**. For true RLS testing, you must test **through your application** using authenticated Supabase clients.
 
-1. **Login as admin user**:
-   - Authenticate to Supabase Dashboard or your application
-   - Verify you're logged in as a user who IS in `admin_users` table
-   - Navigate to: Dashboard → Table Editor → admin_users
-   - Confirm your user_id appears in the list
+**Option A: Via Browser Console (Recommended for Manual Testing)**
 
-2. **Prepare new admin user**:
-   - The new admin's `user_id` must exist in `auth.users`
-   - Create via: Dashboard → Authentication → Invite User
-   - Or use existing user UUID
+1. **Open your application** in a browser and login as an **admin user**
 
-3. **Insert new admin via Table Editor**:
-   - Navigate to: Table Editor → `admin_users` table
-   - Click **Insert Row** button
-   - Fill in fields:
-     - `user_id`: UUID of user from auth.users (copy from Authentication tab)
-     - `display_name`: "New Admin Name"
-     - `email`: "newadmin@example.com"
-   - Click **Save**
+2. **Open browser DevTools** (F12) → Console tab
 
-4. **Expected Result**:
-   - **Success notification**: "Row inserted successfully" or "1 row inserted"
-   - **New admin appears** in table immediately
-   - **No error dialogs**
+3. **Verify you're an admin** (optional):
+   ```javascript
+   const supabase = window.supabase || (await import('./lib/supabase/client')).default
 
-5. **Verification**:
-   - Refresh the `admin_users` table
-   - Confirm new row with specified `user_id` exists
-   - Check `created_at` timestamp is recent
+   // Check if you're an admin
+   const { data: session } = await supabase.auth.getSession()
+   const userId = session.session?.user.id
 
-6. **Cleanup** (optional):
-   - Select the test admin row
-   - Click **Delete Row**
-   - Confirm deletion
+   const { data: isAdmin } = await supabase
+     .from('admin_users')
+     .select('user_id')
+     .eq('user_id', userId)
+     .single()
 
-**Note**: If you receive a permission error, verify you're logged in as an existing admin user.
+   console.log('Am I admin?', !!isAdmin)
+   // Should be true
+   ```
+
+4. **Test INSERT** as admin:
+   ```javascript
+   // Attempt to insert new admin (should succeed)
+   const { data, error } = await supabase
+     .from('admin_users')
+     .insert({
+       user_id: 'new-admin-user-uuid', // Must exist in auth.users
+       display_name: 'New Test Admin',
+       email: 'newadmin@test.com'
+     })
+     .select()
+
+   console.log('Error:', error)  // Should be null
+   console.log('Data:', data)    // Should show inserted row
+
+   // Cleanup (delete test admin):
+   if (data) {
+     await supabase
+       .from('admin_users')
+       .delete()
+       .eq('user_id', data[0].user_id)
+     console.log('Cleanup: Test admin deleted')
+   }
+   ```
+
+5. **Expected Result**:
+   - **No error**: `error === null`
+   - **Data returned**: New admin row object
+   - **Success**: Admin was added
+
+**Option B: Via Custom API Route (If You Build One)**
+
+If you create an admin management endpoint:
+
+```bash
+# Login to your app as admin and get JWT token
+export JWT_TOKEN="your-admin-jwt-token"
+
+# Add new admin via your API
+curl -X POST 'http://localhost:3000/api/admin/users' \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "user_id": "new-admin-uuid",
+    "display_name": "New Admin",
+    "email": "admin@example.com",
+    "action": "add_admin"
+  }'
+
+# Expected: 200 OK with new admin data
+```
+
+**Option C: Supabase Dashboard Table Editor (Limited)**
+
+⚠️ **Warning**: This method is **unreliable** for RLS testing because the Dashboard may use service role privileges.
+
+- Navigate to: Supabase Dashboard → Table Editor → `admin_users`
+- Insert a new row
+- The Dashboard likely has **admin access** and **bypasses RLS policies**
+- This tests database constraints but **not RLS specifically**
+
+**Recommendation**: Use **Option A (Browser Console)** or **Method 3 (Automated Tests)** for accurate RLS testing.
 
 #### Method 3: Automated Integration Test
 

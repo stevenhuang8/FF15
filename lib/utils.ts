@@ -120,6 +120,92 @@ export const formatPacificDateTime = formatLocalDateTime
 export const getTodayPacific = getTodayLocal
 
 // ============================================================================
+// Week Calculation Utilities
+// ============================================================================
+
+/**
+ * Day of week when weeks start for fitness tracking
+ * 0 = Sunday, 1 = Monday, etc.
+ * Using Monday (ISO 8601 standard) for consistent fitness tracking
+ */
+export const WEEK_START_DAY = 1; // Monday
+
+/**
+ * Gets the start of the week for a given date
+ * Returns midnight of the week's start day in local timezone
+ *
+ * @param date - Date to find week start for (Date object or YYYY-MM-DD string)
+ * @param weekStartsOn - Day of week (0=Sunday, 1=Monday, etc.). Defaults to WEEK_START_DAY (Monday)
+ * @returns Date object representing the start of the week at midnight
+ *
+ * @example
+ * // For Thursday, Nov 28, 2024 with Monday start
+ * getWeekStart(new Date(2024, 10, 28)) // Returns Monday, Nov 25, 2024 00:00:00
+ *
+ * // With Sunday start
+ * getWeekStart(new Date(2024, 10, 28), 0) // Returns Sunday, Nov 24, 2024 00:00:00
+ */
+export function getWeekStart(date: Date | string, weekStartsOn: number = WEEK_START_DAY): Date {
+  const d = typeof date === 'string' ? parseLocalDate(date) : new Date(date)
+  d.setHours(0, 0, 0, 0) // Reset to midnight
+
+  const day = d.getDay()
+  const diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn
+
+  d.setDate(d.getDate() - diff)
+  return d
+}
+
+/**
+ * Gets the end of the week for a given date
+ * Returns 23:59:59.999 of the week's last day in local timezone
+ *
+ * @param date - Date to find week end for (Date object or YYYY-MM-DD string)
+ * @param weekStartsOn - Day of week (0=Sunday, 1=Monday, etc.). Defaults to WEEK_START_DAY (Monday)
+ * @returns Date object representing the end of the week
+ *
+ * @example
+ * // For Thursday, Nov 28, 2024 with Monday start
+ * getWeekEnd(new Date(2024, 10, 28)) // Returns Sunday, Dec 1, 2024 23:59:59.999
+ */
+export function getWeekEnd(date: Date | string, weekStartsOn: number = WEEK_START_DAY): Date {
+  const start = getWeekStart(date, weekStartsOn)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 6)
+  end.setHours(23, 59, 59, 999)
+  return end
+}
+
+/**
+ * Formats a week range as a readable string
+ *
+ * @param weekStartDate - Start date of the week (YYYY-MM-DD string or Date)
+ * @returns Formatted string like "Nov 25 - Dec 1" or "Dec 30 - Jan 5"
+ *
+ * @example
+ * formatWeekRange("2024-11-25") // "Nov 25 - Dec 1"
+ * formatWeekRange(new Date(2024, 11, 30)) // "Dec 30 - Jan 5"
+ */
+export function formatWeekRange(weekStartDate: Date | string): string {
+  const start = typeof weekStartDate === 'string' ? parseLocalDate(weekStartDate) : new Date(weekStartDate)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 6)
+
+  const startMonth = start.toLocaleDateString('en-US', { month: 'short' })
+  const startDay = start.getDate()
+  const endMonth = end.toLocaleDateString('en-US', { month: 'short' })
+  const endDay = end.getDate()
+
+  // If same month, only show month once
+  if (startMonth === endMonth) {
+    return `${startMonth} ${startDay}-${endDay}`
+  }
+
+  // Different months, show both
+  return `${startMonth} ${startDay} - ${endMonth} ${endDay}`
+}
+
+// ============================================================================
 // UUID Validation
 // ============================================================================
 

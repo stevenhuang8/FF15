@@ -137,7 +137,7 @@ export function IngredientInput({
                       </CommandEmpty>
                       <CommandGroup>
                         {COMMON_INGREDIENTS.filter((ingredient) =>
-                          ingredient.toLowerCase().includes(field.value.toLowerCase())
+                          ingredient.toLowerCase().includes(field.value?.toLowerCase() ?? '')
                         ).map((ingredient) => (
                           <CommandItem
                             key={ingredient}
@@ -183,7 +183,7 @@ export function IngredientInput({
                     step="0.01"
                     placeholder="Enter quantity"
                     {...field}
-                    value={isNaN(field.value) || field.value === undefined ? '' : field.value}
+                    value={field.value === undefined || isNaN(field.value) ? '' : field.value}
                     onChange={(e) => {
                       const value = e.target.value;
                       // Allow empty string for easier editing

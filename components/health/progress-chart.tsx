@@ -27,7 +27,7 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { parseLocalDate } from '@/lib/utils'
+import { parseLocalDate, formatWeekRange } from '@/lib/utils'
 
 // ============================================================================
 // Component Types
@@ -59,6 +59,7 @@ interface ProgressChartProps {
   height?: number
   showLegend?: boolean
   onDataPointClick?: (dataPoint: ChartDataPoint | MultiSeriesDataPoint) => void
+  isWeeklyData?: boolean // Flag to format dates as week ranges
 }
 
 interface MultiChartProps {
@@ -128,17 +129,20 @@ export function ProgressChart({
   height = 300,
   showLegend = true,
   onDataPointClick,
+  isWeeklyData = false,
 }: ProgressChartProps) {
   // Format date for display
   const formattedData = useMemo(() => {
     return data.map((point) => ({
       ...point,
-      date: parseLocalDate(point.date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      }),
+      date: isWeeklyData
+        ? formatWeekRange(point.date) // Format as week range (e.g., "Nov 25 - Dec 1")
+        : parseLocalDate(point.date).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          }),
     }))
-  }, [data])
+  }, [data, isWeeklyData])
 
   // Handle datapoint clicks
   const handleDotClick = (clickData: any) => {
@@ -389,11 +393,12 @@ export function ProgressChartDashboard({
         {workoutData.length > 0 ? (
           <ProgressChart
             title="Workout Frequency"
-            description="Number of workouts per week"
+            description="Number of workouts per week (Monday-Sunday)"
             data={workoutData}
             type="bar"
             yAxisLabel="Workouts"
             height={400}
+            isWeeklyData={true}
           />
         ) : (
           <Card>

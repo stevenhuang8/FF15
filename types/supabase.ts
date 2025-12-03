@@ -399,6 +399,51 @@ export type Database = {
           },
         ]
       }
+      progress_photos: {
+        Row: {
+          caption: string | null
+          created_at: string | null
+          id: string
+          image_url: string
+          taken_at: string
+          user_id: string
+          workout_log_id: string | null
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          image_url: string
+          taken_at: string
+          user_id: string
+          workout_log_id?: string | null
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string
+          taken_at?: string
+          user_id?: string
+          workout_log_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progress_photos_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progress_photos_workout_log_id_fkey"
+            columns: ["workout_log_id"]
+            isOneToOne: false
+            referencedRelation: "workout_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       progress_snapshots: {
         Row: {
           avg_calories_per_day: number | null

@@ -50,7 +50,7 @@ import {
   deleteHealthMetrics,
 } from '@/lib/supabase/health-metrics'
 import { autoGenerateSnapshot } from '@/lib/health/snapshot-generator'
-import { parseLocalDate } from '@/lib/utils'
+import { parseLocalDate, getWeekStart, formatDateForDB } from '@/lib/utils'
 import type { Tables } from '@/types/supabase'
 
 // ============================================================================
@@ -223,13 +223,13 @@ export default function DashboardClient() {
       .order('completed_at', { ascending: true })
 
     if (workoutLogs) {
-      // Group by week
+      // Group by week (Monday-Sunday)
       const weeklyWorkouts = new Map<string, number>()
 
       workoutLogs.forEach((log) => {
         const date = new Date(log.completed_at!)
-        const weekStart = getWeekStart(date)
-        const weekKey = weekStart.toISOString().split('T')[0]
+        const weekStart = getWeekStart(date) // Uses shared utility with Monday start
+        const weekKey = formatDateForDB(weekStart) // Format as YYYY-MM-DD
 
         weeklyWorkouts.set(weekKey, (weeklyWorkouts.get(weekKey) || 0) + 1)
       })
@@ -260,13 +260,6 @@ export default function DashboardClient() {
     if (!first || !last) return undefined
 
     return last - first
-  }
-
-  const getWeekStart = (date: Date): Date => {
-    const d = new Date(date)
-    const day = d.getDay()
-    const diff = d.getDate() - day
-    return new Date(d.setDate(diff))
   }
 
   const handleMetricsSuccess = () => {

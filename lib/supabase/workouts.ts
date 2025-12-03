@@ -299,23 +299,27 @@ export async function getWorkoutLogs(userId: string, limit = 50) {
 }
 
 /**
- * Gets the count of workouts completed in the last 7 days (this week)
+ * Gets the count of workouts completed in the current week (Monday-Sunday)
  * Used for real-time dashboard statistics
+ * Aligns with workout frequency chart week grouping
  */
 export async function getWorkoutCountThisWeek(userId: string): Promise<number> {
   const supabase = createClient();
 
   try {
-    // Calculate date 7 days ago
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+    // Import shared week calculation utility
+    const { getWeekStart } = await import('@/lib/utils');
+
+    // Get start of current week (Monday at 00:00:00)
+    const now = new Date();
+    const weekStart = getWeekStart(now);
+    const weekStartISO = weekStart.toISOString();
 
     const { count, error } = await supabase
       .from('workout_logs')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .gte('completed_at', sevenDaysAgoISO);
+      .gte('completed_at', weekStartISO);
 
     if (error) {
       console.error('Error counting workouts this week:', error);

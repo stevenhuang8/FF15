@@ -125,7 +125,8 @@ export async function POST(request: NextRequest) {
 
     console.log("🌍 User timezone:", timezone, `(offset: ${offset} minutes)`);
 
-    // Get current date/time in user's timezone
+    // CRITICAL: Get FRESH current date/time in user's timezone for THIS request
+    // This ensures the agent always has accurate "today" context, even in long conversations
     const currentDate = new Date();
     const formattedDate = currentDate.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
       timeZone: timezone
     });
 
-    console.log("📅 Current date/time:", formattedDate, "at", formattedTime);
+    console.log("📅 FRESH current date/time for this request:", formattedDate, "at", formattedTime);
 
     const modelMessages = convertToModelMessages(messages);
 

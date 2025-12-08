@@ -76,11 +76,14 @@ function createSubagentTool(
     inputSchema: z.object({
       query: z.string().describe('The specific question or task to delegate to this specialized subagent'),
       userId: z.string().optional().describe('User ID for personalized context (passed from main agent)'),
+      currentDate: z.string().optional().describe('Current date in user timezone (passed from main agent)'),
+      currentTime: z.string().optional().describe('Current time in user timezone (passed from main agent)'),
     }),
-    execute: async ({ query, userId }) => {
+    execute: async ({ query, userId, currentDate, currentTime }) => {
       console.log(`\n🤖 Delegating to ${name} subagent`);
       console.log(`   Query: "${query}"`);
       console.log(`   Allowed tools: ${allowedTools.join(', ')}`);
+      if (currentDate) console.log(`   Current date: ${currentDate}`);
 
       // Build restricted tools object for this subagent
       const restrictedTools: Record<string, any> = {};
@@ -92,10 +95,16 @@ function createSubagentTool(
         }
       }
 
-      // Inject userId into prompt if provided
-      const systemPrompt = userId
-        ? `${prompt}\n\n**CRITICAL - User ID**: The authenticated user's ID is: ${userId}. Always include userId: "${userId}" when calling tools that require it.`
-        : prompt;
+      // Inject userId and current date/time into prompt
+      let systemPrompt = prompt;
+
+      if (userId) {
+        systemPrompt += `\n\n**CRITICAL - User ID**: The authenticated user's ID is: ${userId}. Always include userId: "${userId}" when calling tools that require it.`;
+      }
+
+      if (currentDate && currentTime) {
+        systemPrompt += `\n\n**CRITICAL - Current Date & Time**: The current date is ${currentDate} at ${currentTime} in the user's local timezone. When users say "today", this is the date they mean. When logging meals or workouts without a specified date, use "today" (which means ${currentDate}).`;
+      }
 
       try {
         // Run subagent with isolated context

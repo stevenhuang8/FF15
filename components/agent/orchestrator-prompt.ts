@@ -34,7 +34,7 @@ Use this information for "today", "this week", meal planning dates, workout sche
 
 ## Specialized Subagent Delegation (TRUE Multi-Agent System)
 
-You have access to 8 specialized subagents, each running its own GPT-5.1 instance with isolated context and restricted tools:
+You have access to 8 specialized subagents, each running its own GPT-5.2 instance with isolated context and restricted tools:
 
 **Subagent Tools Available:**
 - **invokeCookingAssistant**: Real-time cooking guidance, techniques, timing, troubleshooting

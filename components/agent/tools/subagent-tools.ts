@@ -6,7 +6,7 @@
  * - Restricted tools (only what that subagent needs)
  * - Stream merging (subagent output streams into main conversation)
  *
- * This pattern enables true multi-agent orchestration with GPT-5.1 while
+ * This pattern enables true multi-agent orchestration with GPT-5.2 while
  * keeping the familiar Vercel AI SDK architecture.
  */
 
@@ -109,7 +109,7 @@ function createSubagentTool(
       try {
         // Run subagent with isolated context
         const subResult = streamText({
-          model: openai('gpt-5.1'), // ✅ Use GPT-5.1
+          model: openai('gpt-5.2'), // ✅ Use GPT-5.2
           system: systemPrompt,
           messages: [{ role: 'user', content: query }],
           tools: restrictedTools,

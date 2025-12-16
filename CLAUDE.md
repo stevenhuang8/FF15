@@ -24,7 +24,7 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 ### Core Stack
 
 - **Next.js 15** with App Router and Turbopack for fast builds
-- **AI SDK 5** with OpenAI GPT-5.1 integration and web search tool
+- **AI SDK 5** with OpenAI GPT-5.2 integration and web search tool
 - **Vectorize** for RAG document retrieval from your knowledge base
 - **shadcn/ui** components (New York style, neutral base color)
 - **Tailwind CSS v4** for styling
@@ -48,10 +48,10 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 ### AI Integration
 
 - Uses AI SDK 5's `streamText()` for streaming responses
-- Configured for **GPT-5.1** (OpenAI's latest model released November 2025) via OpenAI provider with web search tool enabled
-  - GPT-5.1 features adaptive reasoning that dynamically adjusts thinking time based on task complexity
+- Configured for **GPT-5.2** (OpenAI's latest model released December 2025) via OpenAI provider with web search tool enabled
+  - GPT-5.2 features adaptive reasoning that dynamically adjusts thinking time based on task complexity
   - More conversational and natural responses compared to GPT-5
-  - API model ID: `gpt-5.1`
+  - API model ID: `gpt-5.2`
 - Vectorize RAG integration via `VectorizeService` in `/lib/retrieval/`
 - System instructions defined in `components/agent/prompt.ts` (travel agent theme)
 - API route at `/api/chat` expects `{ messages: Array }` and returns streaming text
@@ -153,7 +153,7 @@ const { messages, status, sendMessage } = useChat({
 
 ```typescript
 const result = streamText({
-  model: openai("gpt-5.1"),
+  model: openai("gpt-5.2"),
   messages: modelMessages,
   tools: { retrieveKnowledgeBase },
   stopWhen: stepCountIs(10), // CURRENT API - replaces deprecated maxSteps
@@ -166,7 +166,7 @@ Control how and when tools are called using the `toolChoice` parameter:
 
 ```typescript
 const result = streamText({
-  model: openai("gpt-5.1"),
+  model: openai("gpt-5.2"),
   messages: modelMessages,
   tools: { retrieveKnowledgeBase },
   toolChoice: 'auto', // Options: 'auto', 'required', 'none', or specific tool name
@@ -186,7 +186,7 @@ const result = streamText({
 ```typescript
 // Current working approach (v5.0.44)
 const result = streamText({
-  model: openai("gpt-5.1"),
+  model: openai("gpt-5.2"),
   messages: modelMessages,
   tools: { retrieveKnowledgeBase },
   stopWhen: stepCountIs(10),
@@ -203,7 +203,7 @@ return result.toUIMessageStreamResponse();
 const stream = createUIMessageStream({
   execute: async ({ writer }) => {
     const result = streamText({
-      model: openai("gpt-5.1"),
+      model: openai("gpt-5.2"),
       messages: modelMessages,
       tools: { retrieveKnowledgeBase },
       stopWhen: stepCountIs(10),
@@ -458,7 +458,7 @@ import { ORCHESTRATOR_PROMPT } from '@/components/agent/orchestrator-prompt';
 import { SUBAGENTS } from '@/components/agent/subagents';
 
 const result = streamText({
-  model: openai('gpt-5.1'),
+  model: openai('gpt-5.2'),
   system: ORCHESTRATOR_PROMPT,
   messages: modelMessages,
   stopWhen: stepCountIs(15), // More steps for multi-agent orchestration

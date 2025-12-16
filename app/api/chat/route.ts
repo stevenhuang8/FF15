@@ -57,7 +57,7 @@ export const maxDuration = 300; // 300 seconds (5 min) for complex AI processing
 export const bodyParser = { sizeLimit: '10mb' };
 
 /**
- * Main Chat API Route with True Multi-Agent Orchestration (GPT-5.1)
+ * Main Chat API Route with True Multi-Agent Orchestration (GPT-5.2)
  *
  * This endpoint implements TRUE subagents using the tool-based delegation pattern:
  *
@@ -71,7 +71,7 @@ export const bodyParser = { sizeLimit: '10mb' };
  * - workout-planner: Personalized fitness routines
  * - profile-manager: User preferences and goals management
  *
- * The main orchestrator (GPT-5.1) automatically delegates to specialized subagents
+ * The main orchestrator (GPT-5.2) automatically delegates to specialized subagents
  * by calling invokeCookingAssistant, invokeRecipeResearcher, etc. as tools.
  * Each subagent runs in its own context with restricted tools for focused expertise.
  *
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
       .replace("{{CURRENT_TIME}}", formattedTime);
 
     const result = streamText({
-      model: openai("gpt-5.1"), // ✅ Upgraded to GPT-5.1 for faster adaptive reasoning
+      model: openai("gpt-5.2"), // ✅ Upgraded to GPT-5.2 for faster adaptive reasoning
       system: systemPromptWithUserContext,
       messages: modelMessages,
 
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
 
       providerOptions: {
         openai: {
-          // GPT-5.1 uses adaptive reasoning - automatically decides when to think deeply
+          // GPT-5.2 uses adaptive reasoning - automatically decides when to think deeply
           // "medium" effort for balanced quality and latency
           reasoning_effort: "medium",
           textVerbosity: "low",
@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
         // ========================================
         // SUBAGENT DELEGATION TOOLS (NEW!)
         // ========================================
-        // Each subagent runs its own GPT-5.1 instance with isolated context
+        // Each subagent runs its own GPT-5.2 instance with isolated context
         // The orchestrator automatically chooses which subagent based on task description
         invokeCookingAssistant,
         invokeRecipeResearcher,

@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     console.log("📅 FRESH current date/time for this request:", formattedDate, "at", formattedTime);
 
-    const modelMessages = convertToModelMessages(messages);
+    const modelMessages = await convertToModelMessages(messages);
 
     console.log("🤖 Orchestrator agent activated with", Object.keys(SUBAGENTS).length, "subagents");
 
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
         console.log(`⏱️ Request completed:`, {
           executionTime: `${executionSeconds}s`,
           finishReason,
-          // Note: response.steps API not yet available in AI SDK v5.0.44
+          // Note: response.steps API available in AI SDK v6.0+
           warningIfSlow: executionTime > 120000 ? '⚠️ Took >2 minutes' : undefined,
         });
 

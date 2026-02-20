@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return new Response("Messages array is required", { status: 400 });
     }
 
-    const modelMessages = convertToModelMessages(messages);
+    const modelMessages = await convertToModelMessages(messages);
 
     // Initialize Firecrawl MCP client
     console.log("🚀 Initializing Firecrawl MCP client...");

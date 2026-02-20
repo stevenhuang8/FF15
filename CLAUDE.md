@@ -24,7 +24,7 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 ### Core Stack
 
 - **Next.js 15** with App Router and Turbopack for fast builds
-- **AI SDK 5** with OpenAI GPT-5.2 integration and web search tool
+- **AI SDK 6** with OpenAI GPT-5.2 integration and web search tool
 - **Vectorize** for RAG document retrieval from your knowledge base
 - **shadcn/ui** components (New York style, neutral base color)
 - **Tailwind CSS v4** for styling
@@ -47,7 +47,7 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 
 ### AI Integration
 
-- Uses AI SDK 5's `streamText()` for streaming responses
+- Uses AI SDK 6's `streamText()` for streaming responses
 - Configured for **GPT-5.2** (OpenAI's latest model released December 2025) via OpenAI provider with web search tool enabled
   - GPT-5.2 features adaptive reasoning that dynamically adjusts thinking time based on task complexity
   - More conversational and natural responses compared to GPT-5
@@ -145,7 +145,7 @@ const { messages, status, sendMessage } = useChat({
 - Use the `toUIMessageStreamResponse()` method for proper client compatibility
 - Tool results are automatically included in the message parts array
 
-#### Current AI SDK API (v5.0.44+)
+#### Current AI SDK API (v6.0+)
 
 **IMPORTANT**: The AI SDK API has evolved. Always use current patterns:
 
@@ -181,10 +181,10 @@ const result = streamText({
 
 ##### Converting Tool Results to Source Data Parts
 
-**Current Limitation (v5.0.44)**: The `response.steps` API is not yet available in the current version. Sources are currently displayed from tool results embedded in message parts.
+**Current Approach (v6.0)**: The `response.steps` API is available in v6. Sources are currently displayed from tool results embedded in message parts.
 
 ```typescript
-// Current working approach (v5.0.44)
+// Current working approach (v6.0)
 const result = streamText({
   model: openai("gpt-5.2"),
   messages: modelMessages,

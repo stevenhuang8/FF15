@@ -26,9 +26,14 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
-export function LoginForm() {
+interface LoginFormProps {
+  showDemo?: boolean
+}
+
+export function LoginForm({ showDemo = false }: LoginFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
+  const [isDemoLoading, setIsDemoLoading] = useState(false)
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -55,6 +60,26 @@ export function LoginForm() {
       } else {
         setError('Failed to sign in. Please try again.')
       }
+    }
+  }
+
+  async function handleDemoLogin() {
+    try {
+      setError(null)
+      setIsDemoLoading(true)
+      const res = await fetch('/api/auth/demo-login', { method: 'POST' })
+      if (!res.ok) {
+        throw new Error('Demo login failed')
+      }
+      router.push('/')
+      router.refresh()
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Demo login failed. Please try again.')
+      }
+      setIsDemoLoading(false)
     }
   }
 
@@ -125,6 +150,28 @@ export function LoginForm() {
             </div>
           </form>
         </Form>
+
+        {showDemo && (
+          <>
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleDemoLogin}
+              disabled={isDemoLoading}
+            >
+              {isDemoLoading ? 'Loading demo...' : 'Continue as Demo'}
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   )

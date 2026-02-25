@@ -1,60 +1,13 @@
 # Pending Major Version Updates
 
-This document tracks major version updates that were deferred during the dependency update on 2025-12-01.
+All previously deferred updates have been completed. This document is kept for historical reference.
 
-## Deferred Updates
+## All Deferred Updates Completed ✅
 
-### 1. Next.js 16.0.6 (Currently: 15.5.3)
-- **Type**: Major version update (15 → 16)
-- **Status**: Deferred for separate testing
-- **Considerations**:
-  - Major version updates in Next.js can introduce breaking changes
-  - Requires thorough testing of all routes, API endpoints, and middleware
-  - May affect Turbopack configuration
-  - Review [Next.js 16 upgrade guide](https://nextjs.org/docs/app/building-your-application/upgrading/version-16)
-
-**Recommended Testing Steps**:
-1. Review Next.js 16 changelog and breaking changes
-2. Update to 16.0.6 in a separate branch
-3. Test all pages render correctly
-4. Verify API routes (/api/chat, /api/rag-agent, etc.)
-5. Test authentication flows (login, signup, password reset)
-6. Test MCP server integration
-7. Verify Turbopack build still works
-8. Check middleware functionality
-9. Test edge runtime pages
-
-### 2. react-syntax-highlighter 16.1.0 (Currently: 15.6.6)
-- **Type**: Major version update (15 → 16)
-- **Status**: Deferred for separate testing
-- **Considerations**:
-  - Used in chat components for code highlighting
-  - May have API or prop changes
-  - Check if syntax highlighting styles are affected
-
-**Recommended Testing Steps**:
-1. Review changelog for breaking changes
-2. Update in a separate branch
-3. Test code blocks in chat interface
-4. Verify syntax highlighting works for common languages (JS, Python, etc.)
-5. Check if custom styling still applies
-
-### 3. @types/node 24.10.1 (Currently: 20.19.14)
-- **Type**: Major version update (20 → 24)
-- **Status**: Deferred for separate testing
-- **Considerations**:
-  - Node.js type definitions major update
-  - May expose new type errors in existing code
-  - Ensure Node.js runtime version is compatible (check `.nvmrc` or engines field)
-  - Review if any deprecated Node.js APIs are used
-
-**Recommended Testing Steps**:
-1. Check current Node.js version in project
-2. Verify Node.js 24.x compatibility
-3. Update types in a separate branch
-4. Run `pnpm tsc --noEmit` to check for new type errors
-5. Fix any type errors that surface
-6. Test build process
+### ✅ Next.js 16 (15.5.3 → 16.1.6) — completed Feb 2026
+### ✅ react-syntax-highlighter 16.1.0 — completed Feb 2026
+### ✅ @types/node 25.2.1 — completed Feb 2026
+### ✅ AI SDK 6 (ai 5.x → 6.0.73, @ai-sdk/openai 2.x → 3.x, @ai-sdk/react 2.x → 3.x) — completed Feb 2026
 
 ## Recent Updates Completed (2025-12-01)
 
@@ -92,32 +45,14 @@ Fixed TypeScript errors in `components/ingredient/ingredient-input.tsx`:
 - ✅ TypeScript type checking passed (`pnpm tsc --noEmit`)
 - ✅ Production build successful (`pnpm build`)
 
-## Next Steps
-
-When ready to tackle major version updates:
-
-1. Create a new branch: `git checkout -b update/next-js-16`
-2. Update one major package at a time
-3. Follow the recommended testing steps for each package
-4. Run full test suite if available
-5. Test manually in development environment
-6. Verify production build works
-7. Deploy to staging environment for thorough testing
-8. Merge to main only after confirming everything works
-
-## Notes
-
-- All completed updates are backward compatible
-- No breaking changes were introduced in Phases 1-4
-- Application is stable and production-ready with current updates
-- Major version updates can be done incrementally when time permits
-
 ---
 
-# Progress Photos Storage Setup
+# Progress Photos Storage Setup — COMPLETED ✅
 
-## Issue
-The progress photos feature requires a Supabase Storage bucket that may not be configured yet.
+## Status
+Supabase Storage bucket `progress-photos` has been configured and the feature is working.
+
+## Setup That Was Required
 
 ## Required Setup
 

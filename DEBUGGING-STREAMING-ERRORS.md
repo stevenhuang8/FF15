@@ -1,15 +1,19 @@
 # Debugging Production Streaming Errors
 
-## Error Context
+## Status: RESOLVED ✅
+
+The streaming `rs_` ID error has been fixed. This document is kept for historical reference.
+
+## Error Context (Historical)
 
 **Error:** `Error: Item with id 'rs_0d53cd07270c8971006916577696b8819b9f22f1f635331670' not found.`
 
 **Location:** Frontend chat component during AI response streaming
 
-**AI SDK Versions:**
-- `ai`: ^5.0.92
-- `@ai-sdk/react`: ^2.0.92
-- `@ai-sdk/openai`: ^2.0.65
+**AI SDK Versions at time of issue:**
+- `ai`: ^5.0.92 (now on ^6.0.73)
+- `@ai-sdk/react`: ^2.0.92 (now on ^3.0.75)
+- `@ai-sdk/openai`: ^2.0.65 (now on ^3.0.25)
 
 ## Root Cause Analysis
 

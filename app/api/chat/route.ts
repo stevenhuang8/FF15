@@ -44,7 +44,6 @@ import {
   invokeWorkoutPlanner,
   invokeProfileManager,
 } from "@/components/agent/tools";
-import { SUBAGENTS } from "@/components/agent/subagents";
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { NextRequest } from "next/server";
@@ -145,8 +144,6 @@ export async function POST(request: NextRequest) {
     console.log("📅 FRESH current date/time for this request:", formattedDate, "at", formattedTime);
 
     const modelMessages = await convertToModelMessages(messages);
-
-    console.log("🤖 Orchestrator agent activated with", Object.keys(SUBAGENTS).length, "subagents");
 
     // Inject user ID, name, and current date/time into system prompt
     const systemPromptWithUserContext = ORCHESTRATOR_PROMPT

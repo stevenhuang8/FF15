@@ -1,16 +1,16 @@
 /**
  * Subagent Tool Implementations
  *
- * Each subagent is implemented as a tool that runs its own streamText() with:
- * - Isolated context (separate prompt and message history)
- * - Restricted tools (only what that subagent needs)
- * - Stream merging (subagent output streams into main conversation)
+ * Each subagent is implemented as a tool backed by a ToolLoopAgent instance.
+ * ToolLoopAgent instances are created once at module load and reused across requests.
  *
- * This pattern enables true multi-agent orchestration with GPT-5.2 while
- * keeping the familiar Vercel AI SDK architecture.
+ * Benefits over manual streamText():
+ * - abortSignal propagation (request cancellation flows through to subagents)
+ * - Native SDK agent loop management
+ * - Parallel execution when orchestrator issues multiple tool calls in one step
  */
 
-import { tool, streamText, stepCountIs } from 'ai';
+import { tool, ToolLoopAgent, readUIMessageStream } from 'ai';
 import { z } from 'zod';
 import { openai } from '@ai-sdk/openai';
 
@@ -62,15 +62,34 @@ const toolRegistry: Record<string, any> = {
 };
 
 /**
- * Helper function to create a subagent tool
- * Reduces code duplication across all 8 subagents
+ * Creates a subagent tool backed by a ToolLoopAgent.
+ * The agent instance is created once at module load and reused across requests.
+ * Uses async generator execute + agent.stream() so subagent tokens are streamed
+ * to the user in real-time rather than buffered until full generation completes.
  */
 function createSubagentTool(
   name: string,
   description: string,
-  prompt: string,
-  allowedTools: string[]
+  basePrompt: string,
+  allowedToolNames: string[]
 ) {
+  // Build restricted tools object once at module load
+  const restrictedTools: Record<string, any> = {};
+  for (const toolName of allowedToolNames) {
+    if (toolRegistry[toolName]) {
+      restrictedTools[toolName] = toolRegistry[toolName];
+    } else {
+      console.warn(`⚠️  Tool "${toolName}" not found in registry for ${name}`);
+    }
+  }
+
+  // Instantiate ToolLoopAgent once — reused across all requests
+  const agent = new ToolLoopAgent({
+    model: openai('gpt-5.2'),
+    instructions: basePrompt,
+    tools: restrictedTools,
+  });
+
   return tool({
     description,
     inputSchema: z.object({
@@ -79,69 +98,40 @@ function createSubagentTool(
       currentDate: z.string().optional().describe('Current date in user timezone (passed from main agent)'),
       currentTime: z.string().optional().describe('Current time in user timezone (passed from main agent)'),
     }),
-    execute: async ({ query, userId, currentDate, currentTime }) => {
+    execute: async function* ({ query, userId, currentDate, currentTime }, { abortSignal }) {
       console.log(`\n🤖 Delegating to ${name} subagent`);
       console.log(`   Query: "${query}"`);
-      console.log(`   Allowed tools: ${allowedTools.join(', ')}`);
       if (currentDate) console.log(`   Current date: ${currentDate}`);
 
-      // Build restricted tools object for this subagent
-      const restrictedTools: Record<string, any> = {};
-      for (const toolName of allowedTools) {
-        if (toolRegistry[toolName]) {
-          restrictedTools[toolName] = toolRegistry[toolName];
-        } else {
-          console.warn(`⚠️  Tool "${toolName}" not found in registry for ${name}`);
-        }
-      }
-
-      // Inject userId and current date/time into prompt
-      let systemPrompt = prompt;
-
+      // Append per-request context to the prompt
+      let contextualPrompt = query;
       if (userId) {
-        systemPrompt += `\n\n**CRITICAL - User ID**: The authenticated user's ID is: ${userId}. Always include userId: "${userId}" when calling tools that require it.`;
+        contextualPrompt += `\n\n**CRITICAL - User ID**: The authenticated user's ID is: ${userId}. Always include userId: "${userId}" when calling tools that require it.`;
       }
-
       if (currentDate && currentTime) {
-        systemPrompt += `\n\n**CRITICAL - Current Date & Time**: The current date is ${currentDate} at ${currentTime} in the user's local timezone. When users say "today", this is the date they mean. When logging meals or workouts without a specified date, use "today" (which means ${currentDate}).`;
+        contextualPrompt += `\n\n**CRITICAL - Current Date & Time**: The current date is ${currentDate} at ${currentTime} in the user's local timezone. When users say "today", this is the date they mean. When logging meals or workouts without a specified date, use "today" (which means ${currentDate}).`;
       }
 
-      try {
-        // Run subagent with isolated context
-        const subResult = streamText({
-          model: openai('gpt-5.2'), // ✅ Use GPT-5.2
-          system: systemPrompt,
-          messages: [{ role: 'user', content: query }],
-          tools: restrictedTools,
-          stopWhen: stepCountIs(5), // Limit to 5 steps for subagent tasks
-          providerOptions: {
-            openai: {
-              reasoning_effort: 'medium',
-              textVerbosity: 'low',
-              reasoningSummary: 'detailed',
-            },
-          },
-        });
+      // Stream the subagent response — yields preliminary accumulated messages
+      // so the user sees tokens as they are generated, not all at once at the end
+      const result = await agent.stream({ prompt: contextualPrompt, abortSignal });
 
-        // Await the final text result from subagent
-        // The main orchestrator will display this in the conversation
-        const finalText = await subResult.text;
-        console.log(`✅ ${name} completed (${finalText.length} chars)`);
-
-        return {
-          success: true,
-          response: finalText,
-          subagent: name,
-          summary: `Subagent '${name}' completed the task successfully.`,
-        };
-      } catch (error) {
-        console.error(`💥 ${name} error:`, error);
-        return {
-          success: false,
-          error: `Failed to complete ${name} task: ${error}`,
-          subagent: name,
-        };
+      for await (const message of readUIMessageStream({
+        stream: result.toUIMessageStream(),
+      })) {
+        yield message;
       }
+
+      console.log(`✅ ${name} stream complete`);
+    },
+    toModelOutput: ({ output: message }) => {
+      // Give the orchestrator only the final text to avoid context bloat
+      const textParts = message?.parts?.filter((p): p is { type: 'text'; text: string } => p.type === 'text');
+      const lastText = textParts?.[textParts.length - 1]?.text;
+      return {
+        type: 'text' as const,
+        value: lastText ?? 'Task completed.',
+      };
     },
   });
 }

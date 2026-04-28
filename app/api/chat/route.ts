@@ -169,11 +169,16 @@ export async function POST(request: NextRequest) {
           reasoning_effort: "medium",
           textVerbosity: "low",
           reasoningSummary: "detailed",
+          // Allow the model to issue multiple tool calls in a single step so
+          // subagents can execute concurrently via Promise.all in the SDK
+          parallel_tool_calls: true,
         },
       },
 
-      // Tool execution monitoring to debug "No tool output" errors
       onStepFinish: ({ toolCalls, toolResults, finishReason }) => {
+        if (toolCalls && toolCalls.length > 1) {
+          console.log(`⚡ Parallel execution: ${toolCalls.length} tools in one step`);
+        }
         if (toolCalls && toolCalls.length > 0) {
           toolCalls.forEach((call, index) => {
             const result = toolResults?.[index];

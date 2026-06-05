@@ -4,48 +4,74 @@ import { VectorizeService } from "@/lib/retrieval/vectorize";
 
 export const retrieveKnowledgeBase = tool({
   description:
-    "Retrieve relevant information from the knowledge base to answer questions about our services, documentation, and internal information. Use this when users ask about specific features, documentation, or need information that might be in our knowledge base.",
+    "Retrieve relevant information from the knowledge base. For multi-faceted questions (e.g. involving multiple ingredients, techniques, or dietary constraints), provide 2-3 focused additionalQueries to retrieve broader, more relevant context in parallel.",
   inputSchema: z.object({
     query: z
       .string()
+      .describe("Primary search query for the knowledge base"),
+    additionalQueries: z
+      .array(z.string())
+      .optional()
       .describe(
-        "The search query to find relevant information in the knowledge base"
+        "Optional extra queries for multi-faceted questions. Each should focus on a distinct aspect (e.g. technique, ingredient, dietary need). Max 2."
       ),
   }),
-  execute: async ({ query }) => {
+  execute: async ({ query, additionalQueries }) => {
+    const vectorizeService = new VectorizeService();
+
+    const allQueries = [query, ...(additionalQueries?.slice(0, 2) ?? [])];
+
+    console.log(`🔍 RAG: running ${allQueries.length} query/queries in parallel`);
+
     try {
-      const vectorizeService = new VectorizeService();
+      const results = await Promise.all(
+        allQueries.map((q) => vectorizeService.retrieveDocumentsWithQuality(q))
+      );
 
-      // Retrieve relevant documents from the knowledge base
-      const documents = await vectorizeService.retrieveDocuments(query);
+      const mergedDocs = vectorizeService.deduplicateDocuments(
+        results.flatMap((r) => r.documents)
+      );
 
-      if (!documents || documents.length === 0) {
+      const avgRelevancy =
+        results.reduce((sum, r) => sum + r.averageRelevancy, 0) / results.length;
+      const weakCoverage = results.every((r) => r.weakCoverage);
+
+      if (mergedDocs.length === 0) {
+        console.log("⚠️ RAG: no relevant documents found");
         return {
-          message:
-            "No relevant information found in the knowledge base for this query.",
+          message: "No relevant information found in the knowledge base for this query.",
           documentsFound: 0,
+          weakCoverage: true,
+          suggestion: "Consider using web_search for more current or specific information.",
         };
       }
 
-      // Format the context for the AI model
-      const context = vectorizeService.formatDocumentsForContext(documents);
+      const context = vectorizeService.formatDocumentsForContext(mergedDocs);
+      const sources = vectorizeService.convertDocumentsToChatSources(mergedDocs);
 
-      // Convert to chat sources for UI display
-      const sources = vectorizeService.convertDocumentsToChatSources(documents);
+      console.log(
+        `✅ RAG: ${mergedDocs.length} docs (avg relevancy: ${avgRelevancy.toFixed(2)}, weakCoverage: ${weakCoverage})`
+      );
 
       return {
-        message: `Found ${documents.length} relevant documents in the knowledge base.`,
-        documentsFound: documents.length,
-        context: context,
-        sources: sources,
+        message: `Found ${mergedDocs.length} relevant documents.`,
+        documentsFound: mergedDocs.length,
+        context,
+        sources,
+        averageRelevancy: avgRelevancy,
+        weakCoverage,
+        ...(weakCoverage && {
+          suggestion: "Knowledge base coverage is partial — consider supplementing with web_search.",
+        }),
       };
     } catch (error) {
-      console.error("Error retrieving from knowledge base:", error);
+      console.error("💥 RAG Tool error:", error);
       return {
-        message: `Failed to retrieve information from knowledge base: ${
+        message: `Failed to retrieve from knowledge base: ${
           error instanceof Error ? error.message : "Unknown error"
         }`,
         documentsFound: 0,
+        weakCoverage: true,
       };
     }
   },

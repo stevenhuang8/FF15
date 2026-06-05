@@ -4,31 +4,45 @@ import { VectorizeService } from "@/lib/retrieval/vectorize";
 
 export const retrieveKnowledgeBaseSimple = tool({
   description:
-    "Search the knowledge base for information about cooking techniques, recipes, ingredients, and culinary knowledge",
+    "Search the knowledge base for cooking techniques, recipes, ingredients, and culinary knowledge. For multi-faceted questions, provide 2-3 additionalQueries to retrieve broader context in parallel.",
   inputSchema: z.object({
     query: z
       .string()
+      .describe("Primary search query for cooking techniques, recipes, or culinary information"),
+    additionalQueries: z
+      .array(z.string())
+      .optional()
       .describe(
-        "Search query for cooking techniques, recipes, ingredients, or culinary information"
+        "Optional extra queries for multi-faceted questions. Each should focus on a distinct aspect. Max 2."
       ),
   }),
-  execute: async ({ query }) => {
-    try {
-      const vectorizeService = new VectorizeService();
-      const documents = await vectorizeService.retrieveDocuments(query);
+  execute: async ({ query, additionalQueries }) => {
+    const vectorizeService = new VectorizeService();
+    const allQueries = [query, ...(additionalQueries?.slice(0, 2) ?? [])];
 
-      if (!documents || documents.length === 0) {
+    console.log(`🔍 RAG (simple): running ${allQueries.length} query/queries in parallel`);
+
+    try {
+      const results = await Promise.all(
+        allQueries.map((q) => vectorizeService.retrieveDocumentsWithQuality(q))
+      );
+
+      const mergedDocs = vectorizeService.deduplicateDocuments(
+        results.flatMap((r) => r.documents)
+      );
+
+      const weakCoverage = results.every((r) => r.weakCoverage);
+
+      if (mergedDocs.length === 0) {
         return {
           context: "No relevant information found in the knowledge base.",
           sources: [],
+          weakCoverage: true,
         };
       }
 
-      // Return both context and sources for streaming
-      const chatSources =
-        vectorizeService.convertDocumentsToChatSources(documents);
+      const chatSources = vectorizeService.convertDocumentsToChatSources(mergedDocs);
 
-      // Format sources for AI SDK source parts
       const aiSdkSources = chatSources.map((source, index) => ({
         sourceType: "url" as const,
         id: `vectorize-source-${Date.now()}-${index}`,
@@ -36,15 +50,19 @@ export const retrieveKnowledgeBaseSimple = tool({
         title: source.title || "Knowledge Base Source",
       }));
 
-      const toolResult = {
-        context: vectorizeService.formatDocumentsForContext(documents),
-        sources: aiSdkSources,
-        chatSources: chatSources,
-      };
+      console.log(`✅ RAG (simple): ${mergedDocs.length} docs, weakCoverage: ${weakCoverage}`);
 
-      return toolResult;
+      return {
+        context: vectorizeService.formatDocumentsForContext(mergedDocs),
+        sources: aiSdkSources,
+        chatSources,
+        weakCoverage,
+        ...(weakCoverage && {
+          suggestion: "Knowledge base coverage is partial — consider supplementing with web_search.",
+        }),
+      };
     } catch (error) {
-      console.error(`💥 RAG Tool error:`, error);
+      console.error(`💥 RAG (simple) error:`, error);
       throw error;
     }
   },

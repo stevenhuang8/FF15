@@ -378,7 +378,7 @@ export function IngredientUpload({
             {extractionResult && !isExtracting && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <Sparkles className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium text-green-900 dark:text-green-100">
                     Extracted {extractionResult.ingredients.length} ingredient{extractionResult.ingredients.length !== 1 ? 's' : ''}
                   </span>

@@ -44,114 +44,98 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  /* Warm sand background for light mode */
-  --background: oklch(0.97 0.015 70);
-  --foreground: oklch(0.25 0.02 240);
+  --radius: 0.5rem;
+  /* Neutral paper background, near-black ink */
+  --background: oklch(0.985 0.002 75);
+  --foreground: oklch(0.2 0.005 60);
 
-  /* Cards with subtle sand warmth */
-  --card: oklch(0.98 0.01 70);
-  --card-foreground: oklch(0.25 0.02 240);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.005 60);
 
-  /* Popover */
-  --popover: oklch(0.98 0.01 70);
-  --popover-foreground: oklch(0.25 0.02 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.005 60);
 
-  /* Stone blue primary color */
-  --primary: oklch(0.55 0.10 235);
-  --primary-foreground: oklch(0.98 0.01 235);
+  /* Single warm accent (lime) */
+  --primary: oklch(0.58 0.17 135);
+  --primary-foreground: oklch(0.99 0.005 135);
 
-  /* Pastel blue secondary */
-  --secondary: oklch(0.92 0.05 215);
-  --secondary-foreground: oklch(0.30 0.03 235);
+  --secondary: oklch(0.955 0.003 75);
+  --secondary-foreground: oklch(0.25 0.005 60);
 
-  /* Muted with sand tones */
-  --muted: oklch(0.95 0.015 70);
-  --muted-foreground: oklch(0.50 0.02 240);
+  --muted: oklch(0.955 0.003 75);
+  --muted-foreground: oklch(0.52 0.006 60);
 
-  /* Pastel blue accent */
-  --accent: oklch(0.88 0.06 215);
-  --accent-foreground: oklch(0.30 0.03 235);
+  --accent: oklch(0.94 0.004 75);
+  --accent-foreground: oklch(0.2 0.005 60);
 
-  /* Gentle coral for destructive */
-  --destructive: oklch(0.60 0.15 25);
+  --destructive: oklch(0.58 0.2 27);
 
-  /* Soft borders with sand tint */
-  --border: oklch(0.88 0.015 70);
-  --input: oklch(0.92 0.02 215);
-  --ring: oklch(0.55 0.10 235);
+  --border: oklch(0.91 0.004 75);
+  --input: oklch(0.91 0.004 75);
+  --ring: oklch(0.58 0.17 135);
 
-  /* Chart colors - stone blue, pastel blue, sand palette */
-  --chart-1: oklch(0.60 0.10 235); /* Stone blue */
-  --chart-2: oklch(0.65 0.08 215); /* Pastel blue */
-  --chart-3: oklch(0.70 0.06 220); /* Light pastel blue */
-  --chart-4: oklch(0.75 0.04 210); /* Very light blue */
-  --chart-5: oklch(0.68 0.03 75); /* Sand accent */
+  /* Chart colors - distinct, muted hues */
+  --chart-1: oklch(0.58 0.17 135);  /* Lime */
+  --chart-2: oklch(0.6 0.11 165);  /* Sage */
+  --chart-3: oklch(0.55 0.1 250);  /* Slate blue */
+  --chart-4: oklch(0.65 0.16 30);  /* Coral */
+  --chart-5: oklch(0.55 0.02 60);  /* Stone */
 
-  /* Sidebar */
-  --sidebar: oklch(0.96 0.015 70);
-  --sidebar-foreground: oklch(0.30 0.02 240);
-  --sidebar-primary: oklch(0.55 0.10 235);
-  --sidebar-primary-foreground: oklch(0.98 0.01 235);
-  --sidebar-accent: oklch(0.90 0.04 215);
-  --sidebar-accent-foreground: oklch(0.30 0.03 235);
-  --sidebar-border: oklch(0.88 0.015 70);
-  --sidebar-ring: oklch(0.55 0.10 235);
+  --sidebar: oklch(0.975 0.002 75);
+  --sidebar-foreground: oklch(0.25 0.005 60);
+  --sidebar-primary: oklch(0.58 0.17 135);
+  --sidebar-primary-foreground: oklch(0.99 0.005 135);
+  --sidebar-accent: oklch(0.94 0.004 75);
+  --sidebar-accent-foreground: oklch(0.2 0.005 60);
+  --sidebar-border: oklch(0.91 0.004 75);
+  --sidebar-ring: oklch(0.58 0.17 135);
 }
 
 .dark {
-  /* Deep stone blue background for calm atmosphere */
-  --background: oklch(0.16 0.03 240);
-  --foreground: oklch(0.96 0.01 70);
+  /* Neutral near-black, no color tint */
+  --background: oklch(0.155 0.003 60);
+  --foreground: oklch(0.95 0.003 75);
 
-  /* Card with stone blue tint */
-  --card: oklch(0.21 0.04 238);
-  --card-foreground: oklch(0.96 0.01 70);
+  --card: oklch(0.19 0.003 60);
+  --card-foreground: oklch(0.95 0.003 75);
 
-  /* Popover slightly lighter than cards */
-  --popover: oklch(0.23 0.04 238);
-  --popover-foreground: oklch(0.96 0.01 70);
+  --popover: oklch(0.21 0.003 60);
+  --popover-foreground: oklch(0.95 0.003 75);
 
-  /* Pastel blue primary - calming and peaceful */
-  --primary: oklch(0.65 0.12 220);
-  --primary-foreground: oklch(0.98 0.005 240);
+  /* Single warm accent (lime) */
+  --primary: oklch(0.89 0.2 125);
+  --primary-foreground: oklch(0.17 0.02 125);
 
-  /* Stone blue secondary */
-  --secondary: oklch(0.30 0.06 235);
-  --secondary-foreground: oklch(0.96 0.01 70);
+  --secondary: oklch(0.24 0.003 60);
+  --secondary-foreground: oklch(0.95 0.003 75);
 
-  /* Muted states with stone blue */
-  --muted: oklch(0.26 0.03 240);
-  --muted-foreground: oklch(0.62 0.03 220);
+  --muted: oklch(0.23 0.003 60);
+  --muted-foreground: oklch(0.66 0.005 70);
 
-  /* Accent with pastel blue */
-  --accent: oklch(0.55 0.10 218);
-  --accent-foreground: oklch(0.98 0.005 70);
+  --accent: oklch(0.25 0.003 60);
+  --accent-foreground: oklch(0.95 0.003 75);
 
-  /* Softer destructive with muted coral */
-  --destructive: oklch(0.58 0.16 25);
+  --destructive: oklch(0.64 0.19 27);
 
-  /* Borders and inputs with stone blue tint */
-  --border: oklch(0.33 0.05 238);
-  --input: oklch(0.29 0.05 238);
-  --ring: oklch(0.65 0.12 220);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.89 0.2 125);
 
-  /* Chart colors - stone blue, pastel blue palette */
-  --chart-1: oklch(0.62 0.12 235); /* Stone blue */
-  --chart-2: oklch(0.65 0.10 220); /* Pastel blue */
-  --chart-3: oklch(0.58 0.11 215); /* Light blue */
-  --chart-4: oklch(0.68 0.08 210); /* Very light blue */
-  --chart-5: oklch(0.60 0.04 75); /* Sand accent */
+  /* Chart colors - distinct, muted hues */
+  --chart-1: oklch(0.89 0.2 125);   /* Lime */
+  --chart-2: oklch(0.7 0.11 165);  /* Sage */
+  --chart-3: oklch(0.66 0.1 250);  /* Slate blue */
+  --chart-4: oklch(0.7 0.16 30);   /* Coral */
+  --chart-5: oklch(0.62 0.02 60);  /* Stone */
 
-  /* Sidebar with stone blue dark theme */
-  --sidebar: oklch(0.18 0.03 240);
-  --sidebar-foreground: oklch(0.96 0.01 70);
-  --sidebar-primary: oklch(0.65 0.12 220);
-  --sidebar-primary-foreground: oklch(0.98 0.005 240);
-  --sidebar-accent: oklch(0.30 0.06 235);
-  --sidebar-accent-foreground: oklch(0.96 0.01 70);
-  --sidebar-border: oklch(0.33 0.05 238);
-  --sidebar-ring: oklch(0.65 0.12 220);
+  --sidebar: oklch(0.17 0.003 60);
+  --sidebar-foreground: oklch(0.95 0.003 75);
+  --sidebar-primary: oklch(0.89 0.2 125);
+  --sidebar-primary-foreground: oklch(0.17 0.02 125);
+  --sidebar-accent: oklch(0.25 0.003 60);
+  --sidebar-accent-foreground: oklch(0.95 0.003 75);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.89 0.2 125);
 }
 
 @layer base {
@@ -161,71 +145,14 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+  h1, h2, h3 {
+    @apply tracking-tight;
+  }
 }
 
 @layer utilities {
-  /* Gradient utilities for stone blue, pastel blue, sand theme */
-  .bg-gradient-primary {
-    background: linear-gradient(135deg, oklch(0.55 0.10 235) 0%, oklch(0.65 0.08 220) 100%);
-  }
-
-  .bg-gradient-accent {
-    background: linear-gradient(135deg, oklch(0.65 0.12 220) 0%, oklch(0.70 0.06 215) 100%);
-  }
-
-  .bg-gradient-dark {
-    background: linear-gradient(180deg, oklch(0.16 0.03 240) 0%, oklch(0.13 0.03 238) 100%);
-  }
-
-  /* Glass morphism effect with stone blue tint */
-  .glass {
-    background: oklch(0.21 0.04 238 / 0.5);
-    backdrop-filter: blur(12px);
-    border: 1px solid oklch(0.33 0.05 238 / 0.5);
-  }
-
-  .glass-strong {
-    background: oklch(0.21 0.04 238 / 0.8);
-    backdrop-filter: blur(16px);
-    border: 1px solid oklch(0.33 0.05 238 / 0.7);
-  }
-
-  /* Animated gradient backgrounds - stone blue to pastel blue inspired */
-  .animated-gradient {
-    background: linear-gradient(
-      -45deg,
-      oklch(0.55 0.10 235),
-      oklch(0.65 0.12 220),
-      oklch(0.70 0.08 215),
-      oklch(0.68 0.03 75)
-    );
-    background-size: 400% 400%;
-    animation: gradient 15s ease infinite;
-  }
-
-  @keyframes gradient {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
-  }
-
-  /* Smooth transitions */
   .transition-smooth {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Glow effects for interactive elements - soft pastel blue glow */
-  .glow {
-    box-shadow: 0 0 20px oklch(0.65 0.12 220 / 0.5);
-  }
-
-  .glow-hover:hover {
-    box-shadow: 0 0 30px oklch(0.65 0.12 220 / 0.7);
+    transition: color 0.15s ease, background-color 0.15s ease,
+      border-color 0.15s ease, opacity 0.15s ease;
   }
 }

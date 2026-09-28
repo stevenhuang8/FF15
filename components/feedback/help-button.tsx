@@ -14,7 +14,7 @@ export function HelpButton() {
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(true)}
-        className="transition-smooth glow-hover"
+        className="transition-smooth"
         aria-label="Help and Feedback"
       >
         <HelpCircle className="h-5 w-5" />

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Menu, X, Dumbbell, Apple } from 'lucide-react'
+import { Menu, X, Apple } from 'lucide-react'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { User } from '@supabase/supabase-js'
@@ -32,23 +32,16 @@ export function NavbarClient({ user, isAdmin, userMenuComponent }: NavbarClientP
   const isActive = (path: string) => pathname === path
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border/40 glass-strong transition-smooth">
+    <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/85 backdrop-blur-md">
       <div className="container flex h-16 items-center px-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2 mr-8 group">
-          <motion.div
-            className="flex items-center space-x-2"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 400 }}
-          >
-            <div className="flex items-center gap-1">
-              <Apple className="h-5 w-5 text-primary" />
-              <Dumbbell className="h-5 w-5 text-primary" />
-            </div>
-            <span className="font-bold text-lg text-foreground">
-              Food & Fitness AI
-            </span>
-          </motion.div>
+        <Link href="/" className="flex items-center gap-2 mr-8">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <Apple className="h-4 w-4" />
+          </span>
+          <span className="font-semibold tracking-tight text-foreground">
+            Food & Fitness
+          </span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -99,10 +92,10 @@ export function NavbarClient({ user, isAdmin, userMenuComponent }: NavbarClientP
           ) : (
             <div className="flex items-center space-x-2">
               <HelpButton />
-              <Button variant="ghost" asChild className="transition-smooth glow-hover">
+              <Button variant="ghost" asChild className="transition-smooth">
                 <Link href="/login">Sign In</Link>
               </Button>
-              <Button asChild className="bg-gradient-primary transition-smooth glow-hover">
+              <Button asChild className="transition-smooth">
                 <Link href="/signup">Sign Up</Link>
               </Button>
             </div>
@@ -118,7 +111,7 @@ export function NavbarClient({ user, isAdmin, userMenuComponent }: NavbarClientP
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden border-t border-border/40"
+            className="md:hidden border-t border-border"
           >
             <div className="container py-4 px-4 space-y-2">
               {navItems.map((item) => (

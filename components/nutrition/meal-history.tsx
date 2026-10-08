@@ -89,14 +89,15 @@ export function MealHistory({ weeksBack = 12 }: MealHistoryProps) {
 
   useEffect(() => {
     const supabase = createClient()
-    let subscription: any = null
+    let subscription: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
 
     const setupSubscription = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (!user) return
+      if (!user || cancelled) return
 
       // Subscribe to changes in meal_logs table for this user
       subscription = supabase
@@ -122,8 +123,9 @@ export function MealHistory({ weeksBack = 12 }: MealHistoryProps) {
 
     // Cleanup subscription on unmount
     return () => {
+      cancelled = true
       if (subscription) {
-        subscription.unsubscribe()
+        supabase.removeChannel(subscription)
       }
     }
   }, []) // Empty dependency array - set up once on mount

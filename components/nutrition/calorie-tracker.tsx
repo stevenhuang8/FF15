@@ -65,14 +65,15 @@ export function CalorieTracker({ className }: CalorieTrackerProps) {
 
   useEffect(() => {
     const supabase = createClient()
-    let subscription: any = null
+    let subscription: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
 
     const setupSubscription = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (!user) return
+      if (!user || cancelled) return
 
       // Subscribe to changes in calorie_tracking table for this user
       // This table is updated when meals are logged or workouts are completed
@@ -99,8 +100,9 @@ export function CalorieTracker({ className }: CalorieTrackerProps) {
 
     // Cleanup subscription on unmount
     return () => {
+      cancelled = true
       if (subscription) {
-        subscription.unsubscribe()
+        supabase.removeChannel(subscription)
       }
     }
   }, []) // Empty dependency array - set up once on mount

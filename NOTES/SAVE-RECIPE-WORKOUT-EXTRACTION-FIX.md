@@ -73,3 +73,54 @@ Added formatting guidance under **Response Quality Guidelines**: put a workout a
 - Items without a sets×reps scheme (e.g. `abduction drop-set 2 rounds`) save with sets but no reps.
 - Recipes saved without instructions show an empty steps section in the recipe view.
 - Section classification is keyword-based on headings; a reply with no headings at all falls back to whole-message parsing (previous behaviour).
+
+---
+
+## Follow-up 1: "View source conversation" opened a new chat
+
+### Problem
+
+The recipe and workout detail dialogs link to `/chat-history?conversation=<id>`, but `app/chat-history/page.tsx` never read the `conversation` query param — `selectedConversationId` always started as `null`, so `ChatAssistant` showed a new chat. Broken for both recipes and workouts.
+
+### Fix (`app/chat-history/page.tsx`)
+
+- Read `?conversation=` with `useSearchParams()` and use it as the initial selected conversation (`ChatAssistant` already loads history when given an id on mount).
+- `useEffect` follows the param if it changes while the page is mounted.
+- Selecting a conversation, starting a new chat, or creating one now updates the URL via `router.replace`, so refresh/share keeps the current conversation.
+- Page content wrapped in `<Suspense>` (required for `useSearchParams` in Next.js 15+).
+
+---
+
+## Follow-up 2: Recipe saved with title "Ingredients" and steps listed as ingredients
+
+### Problem
+
+A curry reply with the headings `Recipe: Simple Chicken Curry (stovetop, serves ~4)`, `Ingredients`, `Instructions (35–45 min)`, `Avoid dry chicken` saved as:
+
+- Title **"Ingredients"**
+- Ingredients list containing every step and tip (split mid-sentence on ` + `) plus a `--` from the `---` rule
+- Empty Instructions
+
+### Root Cause
+
+- Section headers were matched by exact string (`cleanedLine === 'instructions'`), so `Instructions (35–45 min)` was never recognised — ingredients never ended and instructions never started.
+- The `Recipe:` title prefix only matched plain text, not `**Recipe:** X` / `### Recipe: X`; the title fallback then picked the `Ingredients` heading.
+- Nothing ended the instructions section on a new heading like `**Avoid dry chicken**`.
+- `^\d+[\.)]` treated the `1.` in `1.5 lb` as a list number (→ `5 lb`).
+
+### Fix (`lib/recipe-extraction.ts`)
+
+- New `normalizeHeaderName()` / `isSectionHeader()` compare headings after stripping markdown, a trailing colon (and inline content) and a trailing parenthetical, against `INGREDIENTS_HEADER_PATTERN`, `INSTRUCTIONS_HEADER_PATTERN` and `END_SECTION_HEADER_PATTERN` (notes, tips, nutrition, storage, …).
+- Ingredients end at an instructions or end-section header; group headers inside (`**For the sauce:**`) are skipped.
+- Instructions end at an end-section header, an ingredients header, any other standalone header (`**Avoid dry chicken**`) unless it's a group header, or a short plain line without punctuation.
+- Title: `Recipe:`/`Title:` prefix matched after stripping `**` and `#`; the fallback skips section headings and horizontal rules.
+- Horizontal rules (`---`, `***`) are ignored everywhere.
+- Quantities accept decimals, mixed numbers, unicode fractions and ranges (`1.5`, `1 1/2`, `½`, `1–1¼`).
+- ` + ` splitting ignores text in parentheses (`(or 1 tbsp curry powder + 1 tsp cumin)` stays as a note).
+- `Optional:` / `Finish:` / `Garnish:` prefixes are kept as ingredient notes instead of being dropped.
+- Servings also match `serves ~4`.
+- List-number regex is now `^\d+[\.)](?!\d)` in both extractors, so `1.5 lb` is no longer read as item "1." + "5 lb".
+
+### Verification
+
+Scratch tests on the curry reply in three formats (plain text as rendered, `####` markdown headers, `**bold**` headers): every variant extracts the title `Simple Chicken Curry (stovetop, serves ~4)`, 11 ingredients (`1.5 lb boneless chicken thighs`, `1–1¼ tsp kosher salt`, optional cayenne, finishing lemon/lime), 7 steps, servings 4, and no tips. The earlier bigger-butt workout/recipe, pancake recipe and push-day workout tests are unchanged.

@@ -173,7 +173,7 @@ export function extractExercises(text: string): WorkoutExercise[] {
       // Look for lines that match exercise patterns
       if (
         trimmed.match(/^(?:[-•]|\*(?!\*))\s*/) || // bulleted
-        trimmed.match(/^\d+[\.)]\s*/) || // numbered
+        trimmed.match(/^\d+[\.)](?!\d)\s*/) || // numbered
         trimmed.match(/\d+\s*sets?/i) || // has "sets"
         trimmed.match(/\d+\s*reps?/i) || // has "reps"
         trimmed.match(/\d+\s*(?:seconds?|minutes?)/i) || // has duration
@@ -203,7 +203,7 @@ function isNonExerciseLine(line: string): boolean {
 }
 
 function stripListMarker(line: string): string {
-  return line.replace(/^(?:[-•]|\*(?!\*))\s*/, '').replace(/^\d+[\.)]\s*/, '').trim();
+  return line.replace(/^(?:[-•]|\*(?!\*))\s*/, '').replace(/^\d+[\.)](?!\d)\s*/, '').trim();
 }
 
 /**
@@ -283,7 +283,7 @@ function parseSchemeExercise(text: string, groupLabel?: string): WorkoutExercise
  */
 function parseExerciseLine(line: string): WorkoutExercise | null {
   // Remove bullet points and list markers
-  let cleaned = line.replace(/^(?:[-•]|\*(?!\*))\s*/, '').replace(/^\d+[\.)]\s*/, '').trim();
+  let cleaned = line.replace(/^(?:[-•]|\*(?!\*))\s*/, '').replace(/^\d+[\.)](?!\d)\s*/, '').trim();
 
   if (cleaned.length === 0) return null;
 

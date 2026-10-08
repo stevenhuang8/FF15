@@ -16,15 +16,86 @@ import { getRecipeSection } from '@/lib/message-sections';
 
 // Labelled lines that describe the recipe rather than list an ingredient (e.g. "**Approx macros:** ...")
 const NON_INGREDIENT_LABEL_PATTERN =
-  /^(?:approx\.?\s*)?(?:macros?|nutrition|calories|best timing|timing|tips?|notes?|why|serving suggestions?|serve with|swaps?|make it|optional|storage)\b[^:]{0,30}:/i;
+  /^(?:approx\.?\s*)?(?:macros?|nutrition|calories|best timing|timing|tips?|notes?|why|serving suggestions?|serve with|swaps?|make it|storage)\b[^:]{0,30}:/i;
 
 function isNonIngredientLine(line: string): boolean {
   const cleaned = line
     .replace(/^(?:[-•]|\*(?!\*))\s*/, '')
-    .replace(/^\d+[\.)]\s*/, '')
+    .replace(/^\d+[\.)](?!\d)\s*/, '')
     .replace(/\*\*/g, '')
     .trim();
   return NON_INGREDIENT_LABEL_PATTERN.test(cleaned) || cleaned.endsWith('?');
+}
+
+// Section header names, compared after normalizeHeaderName()
+const INGREDIENTS_HEADER_PATTERN = /^(?:ingredients?|ingredient list|what you(?:'|’)?ll need|what you need|shopping list)$/;
+const INSTRUCTIONS_HEADER_PATTERN = /^(?:instructions|directions|steps|method|preparation|how to make(?: it)?)$/;
+const END_SECTION_HEADER_PATTERN =
+  /^(?:nutrition(?: facts)?|macros|notes?|tips?|serving(?: suggestions)?|to serve|storage|variations?|make ahead|substitutions?|swaps?)$/;
+
+// Quantities like "2", "1.5", "1/2", "1 1/2", "½", "1¼", "1–1¼"
+const QUANTITY = String.raw`(?:\d+(?:\s+\d+\/\d+|[.\/]\d+)?\s?[¼½¾⅓⅔⅛]?|[¼½¾⅓⅔⅛])`;
+const QUANTITY_RANGE = String.raw`${QUANTITY}(?:\s*[-–—]\s*${QUANTITY})?`;
+
+/**
+ * Returns the section name of a possible header line, ignoring markdown, a trailing colon
+ * (and anything after it) and a trailing parenthetical:
+ * "**Instructions (35–45 min)**" → "instructions", "### Ingredients:" → "ingredients"
+ */
+function normalizeHeaderName(line: string): string | null {
+  const name = line
+    .toLowerCase()
+    .replace(/^#{1,6}\s*/, '')
+    .replace(/[*_]/g, '')
+    .replace(/^[-•]\s*/, '')
+    .replace(/:.*$/, '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim();
+  return name.length > 0 && name.length <= 40 ? name : null;
+}
+
+function isSectionHeader(line: string, pattern: RegExp): boolean {
+  const name = normalizeHeaderName(line);
+  return name !== null && pattern.test(name);
+}
+
+/** Markdown header or a standalone bold line ("**Avoid dry chicken**") */
+function isStandaloneHeader(line: string): boolean {
+  return /^#{1,6}\s+\S/.test(line) || /^(?:\*\*|__)[^*_]+(?:\*\*|__):?$/.test(line);
+}
+
+/** Header that groups items within a section, e.g. "**For the sauce:**" */
+function isSubGroupHeader(line: string): boolean {
+  const name = line.replace(/^#{1,6}\s*/, '').replace(/[*_]/g, '').trim();
+  return /^(?:for|to make|make)\b/i.test(name) || name.endsWith(':');
+}
+
+function isHorizontalRule(line: string): boolean {
+  return /^([-*_])\1{2,}$/.test(line);
+}
+
+/**
+ * Splits "6 oz turkey + 1 cup rice" on " + ", ignoring any inside parentheses
+ * ("2 tbsp curry powder (or 1 tbsp curry powder + 1 tsp cumin)" stays whole)
+ */
+function splitTopLevelPlus(line: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '(') depth++;
+    if (char === ')') depth = Math.max(0, depth - 1);
+    if (depth === 0 && line.startsWith(' + ', i)) {
+      parts.push(current);
+      current = '';
+      i += 2;
+      continue;
+    }
+    current += char;
+  }
+  parts.push(current);
+  return parts.filter(p => p.trim().length > 0);
 }
 
 /**
@@ -34,10 +105,11 @@ function isNonIngredientLine(line: string): boolean {
 export function extractTitle(text: string): string | null {
   const lines = text.split('\n');
 
-  // Pattern 1: Look for "Recipe:" or "Title:" prefix
-  const titlePrefixPattern = /^(?:recipe|title):\s*(.+)/i;
+  // Pattern 1: Look for "Recipe:" or "Title:" prefix (also "**Recipe:** X" / "### Recipe: X")
+  const titlePrefixPattern = /^(?:recipe|title)\s*:\s*(.+)/i;
   for (const line of lines) {
-    const match = line.match(titlePrefixPattern);
+    const cleaned = line.replace(/\*\*|__/g, '').replace(/^#{1,6}\s*/, '').trim();
+    const match = cleaned.match(titlePrefixPattern);
     if (match) {
       return match[1].trim();
     }
@@ -71,11 +143,14 @@ export function extractTitle(text: string): string | null {
     if (
       trimmed.length > 0 &&
       trimmed.length < 80 &&
-      !trimmed.match(/^(ingredients|instructions|directions|preparation|nutrition|notes):/i) &&
+      !isHorizontalRule(trimmed) &&
+      !isSectionHeader(trimmed, INGREDIENTS_HEADER_PATTERN) &&
+      !isSectionHeader(trimmed, INSTRUCTIONS_HEADER_PATTERN) &&
+      !isSectionHeader(trimmed, END_SECTION_HEADER_PATTERN) &&
       !trimmed.match(/^\d+\./) && // not a numbered list
       !trimmed.match(/^(?:[-•]|\*(?!\*))/) // not a bulleted list
     ) {
-      return trimmed.replace(/\*\*/g, '').trim();
+      return trimmed.replace(/\*\*/g, '').replace(/^#{1,6}\s*/, '').trim();
     }
   }
 
@@ -98,59 +173,29 @@ export function extractIngredients(text: string): RecipeIngredient[] {
   // Find the ingredients section
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    const lowerLine = line.toLowerCase();
+    if (line.length === 0 || isHorizontalRule(line)) continue;
 
-    // Remove markdown formatting AND bullet points for comparison
-    const cleanedLine = lowerLine
-      .replace(/[*_#]/g, '')      // Remove markdown formatting
-      .replace(/^[-•*]\s*/, '')   // Remove leading bullet points
-      .trim();
-
-    // Start of ingredients section - flexible matching
-    const isIngredientsHeader =
-      cleanedLine === 'ingredients' ||
-      cleanedLine === 'ingredients:' ||
-      cleanedLine === 'ingredient list' ||
-      cleanedLine === 'ingredient list:' ||
-      cleanedLine === 'what you need' ||
-      cleanedLine === 'what you need:' ||
-      cleanedLine === "what you'll need" ||
-      cleanedLine === "what you'll need:" ||
-      cleanedLine.startsWith('ingredients:') ||
-      cleanedLine.startsWith('ingredient list:');
-
-    if (isIngredientsHeader) {
-      console.log(`🥕 Found ingredients header at line ${i}: "${line}" (cleaned: "${cleanedLine}")`);
+    // Start of ingredients section ("Ingredients", "**Ingredients (serves 4):**", "Ingredients: 2 cups flour, ...")
+    if (isSectionHeader(line, INGREDIENTS_HEADER_PATTERN)) {
+      console.log(`🥕 Found ingredients header at line ${i}: "${line}"`);
       inIngredientsSection = true;
+      const inline = line.replace(/[*_]/g, '').split(':').slice(1).join(':').trim();
+      if (inline.length > 0) ingredientLines.push(inline);
       continue;
     }
 
-    // End of ingredients section (start of another section) - also flexible
-    const isOtherSectionHeader =
-      cleanedLine === 'instructions' ||
-      cleanedLine === 'instructions:' ||
-      cleanedLine === 'directions' ||
-      cleanedLine === 'directions:' ||
-      cleanedLine === 'steps' ||
-      cleanedLine === 'steps:' ||
-      cleanedLine === 'method' ||
-      cleanedLine === 'method:' ||
-      cleanedLine === 'preparation' ||
-      cleanedLine === 'preparation:' ||
-      cleanedLine === 'nutrition' ||
-      cleanedLine === 'nutrition:' ||
-      cleanedLine === 'notes' ||
-      cleanedLine === 'notes:';
+    if (!inIngredientsSection) continue;
 
-    if (inIngredientsSection && isOtherSectionHeader) {
-      console.log(`🥕 End of ingredients section at line ${i}: "${cleanedLine}"`);
+    // End of ingredients section (start of instructions, notes, nutrition, ...)
+    if (isSectionHeader(line, INSTRUCTIONS_HEADER_PATTERN) || isSectionHeader(line, END_SECTION_HEADER_PATTERN)) {
+      console.log(`🥕 End of ingredients section at line ${i}: "${line}"`);
       break;
     }
 
-    // Collect ingredient lines
-    if (inIngredientsSection && line.length > 0) {
-      ingredientLines.push(line);
-    }
+    // Skip group headers like "**For the sauce:**"
+    if (isStandaloneHeader(line)) continue;
+
+    ingredientLines.push(line);
   }
 
   console.log('🥕 Found', ingredientLines.length, 'ingredient lines with headers');
@@ -160,27 +205,11 @@ export function extractIngredients(text: string): RecipeIngredient[] {
     console.log('🥕 No ingredients header found, trying fallback detection...');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      const lowerLine = line.toLowerCase();
-      const cleanedLine = lowerLine
-        .replace(/[*_#]/g, '')      // Remove markdown formatting
-        .replace(/^[-•*]\s*/, '')   // Remove leading bullet points
-        .trim();
+      if (line.length === 0 || isHorizontalRule(line) || isStandaloneHeader(line)) continue;
 
       // Check if we hit the instructions section
-      const isInstructionsStart =
-        cleanedLine === 'instructions' ||
-        cleanedLine === 'instructions:' ||
-        cleanedLine === 'directions' ||
-        cleanedLine === 'directions:' ||
-        cleanedLine === 'steps' ||
-        cleanedLine === 'steps:' ||
-        cleanedLine === 'method' ||
-        cleanedLine === 'method:' ||
-        cleanedLine === 'preparation' ||
-        cleanedLine === 'preparation:';
-
-      if (isInstructionsStart) {
-        console.log(`🥕 Found instructions start at line ${i}: "${cleanedLine}", stopping ingredient search`);
+      if (isSectionHeader(line, INSTRUCTIONS_HEADER_PATTERN) || isSectionHeader(line, END_SECTION_HEADER_PATTERN)) {
+        console.log(`🥕 Found instructions start at line ${i}: "${line}", stopping ingredient search`);
         break;
       }
 
@@ -189,7 +218,7 @@ export function extractIngredients(text: string): RecipeIngredient[] {
       // Collect lines that look like ingredients (have measurements or bullet points)
       if (
         line.match(/^(?:[-•]|\*(?!\*))\s*/) || // bulleted
-        line.match(/^\d+[\.)]\s*/) || // numbered
+        line.match(/^\d+[\.)](?!\d)\s*/) || // numbered
         line.match(/\d+\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|oz|ounces?|lb|lbs|pounds?|g|grams?|kg|ml|l|liters?)/i) // has measurements
       ) {
         console.log(`🥕 Found ingredient-like line at ${i}:`, line.substring(0, 50));
@@ -202,7 +231,7 @@ export function extractIngredients(text: string): RecipeIngredient[] {
   // Parse each ingredient line ("6 oz turkey + 1 cup rice" holds several ingredients)
   for (const line of ingredientLines) {
     if (isNonIngredientLine(line)) continue;
-    for (const part of line.split(/\s\+\s/)) {
+    for (const part of splitTopLevelPlus(line)) {
       const ingredient = parseIngredientLine(part);
       if (ingredient) {
         ingredients.push(ingredient);
@@ -218,24 +247,39 @@ export function extractIngredients(text: string): RecipeIngredient[] {
  */
 function parseIngredientLine(line: string): RecipeIngredient | null {
   // Remove bullet points and list markers
-  let cleaned = line.replace(/^(?:[-•]|\*(?!\*))\s*/, '').replace(/^\d+[\.)]\s*/, '').replace(/\*\*/g, '').trim();
+  let cleaned = line.replace(/^(?:[-•]|\*(?!\*))\s*/, '').replace(/^\d+[\.)](?!\d)\s*/, '').replace(/\*\*/g, '').trim();
 
   if (cleaned.length === 0) return null;
+
+  // Keep labels like "Optional:" / "Finish:" as notes and parse the rest as the ingredient
+  const labelNotes: string[] = [];
+  const labelMatch = cleaned.match(/^(optional|finish|garnish|to serve|for serving|toppings?)\s*:\s*(.+)$/i);
+  if (labelMatch) {
+    labelNotes.push(labelMatch[1]);
+    cleaned = labelMatch[2].trim();
+  }
+  const withLabel = (notes?: string) => {
+    const all = [...labelNotes, ...(notes ? [notes] : [])];
+    return all.length > 0 ? all.join(' · ') : undefined;
+  };
 
   // Pattern: "quantity unit ingredient (notes)"
   // Examples:
   // - "2 cups flour"
   // - "1/2 teaspoon salt"
+  // - "1–1¼ tsp kosher salt"
   // - "3 large eggs, beaten"
   // - "1 lb chicken breast (boneless, skinless)"
 
-  const measurementPattern =
-    /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|oz|ounces?|lb|lbs|pounds?|g|grams?|kg|ml|l|liters?|cloves?|pieces?|slices?|pinch|dash)?\s+(.+)/i;
+  const measurementPattern = new RegExp(
+    `^(${QUANTITY_RANGE})\\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|oz|ounces?|lb|lbs|pounds?|g|grams?|kg|ml|l|liters?|cloves?|pieces?|slices?|pinch|dash)?\\s+(.+)`,
+    'i'
+  );
 
   const match = cleaned.match(measurementPattern);
 
   if (match) {
-    const quantity = match[1];
+    const quantity = match[1].trim();
     const unit = match[2] || undefined;
     let itemAndNotes = match[3];
 
@@ -246,7 +290,7 @@ function parseIngredientLine(line: string): RecipeIngredient | null {
         item: notesMatch[1].trim(),
         quantity,
         unit,
-        notes: notesMatch[2].trim(),
+        notes: withLabel(notesMatch[2].trim()),
       };
     }
 
@@ -257,7 +301,7 @@ function parseIngredientLine(line: string): RecipeIngredient | null {
         item: commaMatch[1].trim(),
         quantity,
         unit,
-        notes: commaMatch[2].trim(),
+        notes: withLabel(commaMatch[2].trim()),
       };
     }
 
@@ -265,12 +309,14 @@ function parseIngredientLine(line: string): RecipeIngredient | null {
       item: itemAndNotes.trim(),
       quantity,
       unit,
+      notes: withLabel(),
     };
   }
 
   // No measurement detected - just item name (e.g., "Salt and pepper to taste")
   return {
     item: cleaned,
+    notes: withLabel(),
   };
 }
 
@@ -287,74 +333,60 @@ export function extractInstructions(text: string): RecipeInstruction[] {
   console.log('📋 extractInstructions: Processing', lines.length, 'lines');
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-    const lowerLine = trimmed.toLowerCase();
+    const trimmed = lines[i].trim();
+    if (trimmed.length === 0 || isHorizontalRule(trimmed)) continue;
 
-    // Remove markdown formatting AND bullet points for comparison
-    const cleanedLine = lowerLine
-      .replace(/[*_#]/g, '')      // Remove markdown formatting
-      .replace(/^[-•*]\s*/, '')   // Remove leading bullet points
-      .trim();
-
-    // Start of instructions section - much more flexible matching
-    const isInstructionsHeader =
-      cleanedLine === 'instructions' ||
-      cleanedLine === 'instructions:' ||
-      cleanedLine === 'directions' ||
-      cleanedLine === 'directions:' ||
-      cleanedLine === 'steps' ||
-      cleanedLine === 'steps:' ||
-      cleanedLine === 'method' ||
-      cleanedLine === 'method:' ||
-      cleanedLine === 'preparation' ||
-      cleanedLine === 'preparation:' ||
-      cleanedLine.startsWith('instructions:') ||
-      cleanedLine.startsWith('directions:') ||
-      cleanedLine.startsWith('steps:') ||
-      cleanedLine.startsWith('method:') ||
-      cleanedLine.startsWith('preparation:');
-
-    if (isInstructionsHeader) {
-      console.log(`📋 Found instructions header at line ${i}: "${cleanedLine}"`);
+    // Start of instructions section ("Instructions", "**Instructions (35–45 min)**", "Steps:", ...)
+    if (isSectionHeader(trimmed, INSTRUCTIONS_HEADER_PATTERN)) {
+      console.log(`📋 Found instructions header at line ${i}: "${trimmed}"`);
       inInstructionsSection = true;
       continue;
     }
 
-    // End of instructions section
-    if (inInstructionsSection && lowerLine.match(/^(nutrition|notes|tips|serving):/i)) {
+    if (!inInstructionsSection) continue;
+
+    // End of instructions section: notes/tips/nutrition, or any other top-level header
+    // (e.g. "**Avoid dry chicken**"); group headers like "**For the sauce:**" are skipped
+    if (isSectionHeader(trimmed, END_SECTION_HEADER_PATTERN) || isSectionHeader(trimmed, INGREDIENTS_HEADER_PATTERN)) {
       console.log(`📋 End of instructions section at line ${i}`);
       break;
     }
+    if (isStandaloneHeader(trimmed)) {
+      if (isSubGroupHeader(trimmed)) continue;
+      console.log(`📋 End of instructions section at header line ${i}: "${trimmed}"`);
+      break;
+    }
 
-    if (inInstructionsSection && trimmed.length > 0) {
-      // Handle numbered steps (e.g., "1. Mix ingredients")
-      const numberedMatch = trimmed.match(/^\d+[\.)]\s*(.+)/);
-      if (numberedMatch) {
-        instructions.push({
-          step: stepNumber++,
-          text: numberedMatch[1].trim(),
-        });
-        continue;
-      }
+    // Handle numbered steps (e.g., "1. Mix ingredients")
+    const numberedMatch = trimmed.match(/^\d+[\.)](?!\d)\s*(.+)/);
+    if (numberedMatch) {
+      instructions.push({
+        step: stepNumber++,
+        text: numberedMatch[1].replace(/\*\*/g, '').trim(),
+      });
+      continue;
+    }
 
-      // Handle bulleted steps
-      const bulletMatch = trimmed.match(/^(?:[-•]|\*(?!\*))\s*(.+)/);
-      if (bulletMatch) {
-        instructions.push({
-          step: stepNumber++,
-          text: bulletMatch[1].trim(),
-        });
-        continue;
-      }
+    // Handle bulleted steps
+    const bulletMatch = trimmed.match(/^(?:[-•]|\*(?!\*))\s*(.+)/);
+    if (bulletMatch) {
+      instructions.push({
+        step: stepNumber++,
+        text: bulletMatch[1].replace(/\*\*/g, '').trim(),
+      });
+      continue;
+    }
 
-      // Plain text instruction (if it's substantial)
-      if (trimmed.length > 20) {
-        instructions.push({
-          step: stepNumber++,
-          text: trimmed,
-        });
-      }
+    // Plain text instruction (if it's substantial)
+    if (trimmed.length > 20) {
+      instructions.push({
+        step: stepNumber++,
+        text: trimmed.replace(/\*\*/g, '').trim(),
+      });
+    } else if (!/[.!)]$/.test(trimmed)) {
+      // Short plain line without punctuation is a heading for a new section (e.g. "Avoid dry chicken")
+      console.log(`📋 End of instructions section at plain heading line ${i}: "${trimmed}"`);
+      break;
     }
   }
 
@@ -395,7 +427,7 @@ export function extractMetadata(text: string): RecipeMetadata {
   } else {
     const yieldsMatch =
       text.match(/yields?:\s*(\d+(?:-\d+)?)/i) ||
-      text.match(/\b(?:serves|makes)\s+(\d+(?:-\d+)?)/i) ||
+      text.match(/\b(?:serves|makes)\s+~?(\d+(?:-\d+)?)/i) ||
       text.match(/\((\d+(?:-\d+)?)\s+servings?\)/i);
     if (yieldsMatch) {
       metadata.servings = yieldsMatch[1];

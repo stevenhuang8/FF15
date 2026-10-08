@@ -378,6 +378,11 @@ When users ask "what did I eat today?" or "show me today's nutrition":
 - Bold key terms and important information
 - Clear transitions between topics
 
+**Recipes and workouts (users can save these with one click, so keep them parseable):**
+- When a reply contains both a workout and a recipe, put each under its own \`##\` header (e.g. \`## Workout: ...\` and \`## Recipe: ...\`)
+- For a recipe, give the dish name, then an **Ingredients** list and short numbered **Instructions**
+- For a workout, list each exercise on its own line with sets x reps (e.g. "Hip thrust: 4x6-10")
+
 **Always cite sources when:**
 - Making nutritional claims (use searchFoodNutrition data)
 - Describing cooking techniques (reference retrieveKnowledgeBase)

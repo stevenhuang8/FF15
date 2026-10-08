@@ -1,23 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import ChatAssistant from "@/components/chat/chat-assistant";
 import ConversationList from "@/components/chat/conversation-list";
 
-export default function ChatHistoryPage() {
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+function ChatHistoryContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // Deep link support: /chat-history?conversation=<id> (e.g. "View source conversation" on saved recipes/workouts)
+  const conversationParam = searchParams.get("conversation");
+
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(conversationParam);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const handleSelectConversation = (conversationId: string) => {
+  // Follow the URL when it changes while this page is already mounted
+  useEffect(() => {
+    setSelectedConversationId(conversationParam);
+  }, [conversationParam]);
+
+  // Keep the URL in sync with the selected conversation
+  const selectConversation = (conversationId: string | null) => {
     setSelectedConversationId(conversationId);
+    router.replace(
+      conversationId ? `/chat-history?conversation=${conversationId}` : "/chat-history",
+      { scroll: false }
+    );
+  };
+
+  const handleSelectConversation = (conversationId: string) => {
+    selectConversation(conversationId);
   };
 
   const handleNewConversation = () => {
-    setSelectedConversationId(null);
+    selectConversation(null);
   };
 
   const handleConversationCreated = (conversationId: string) => {
-    setSelectedConversationId(conversationId);
+    selectConversation(conversationId);
     setRefreshTrigger(prev => prev + 1); // Trigger list refresh
   };
 
@@ -43,5 +63,14 @@ export default function ChatHistoryPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ChatHistoryPage() {
+  // useSearchParams requires a Suspense boundary in Next.js 15
+  return (
+    <Suspense fallback={null}>
+      <ChatHistoryContent />
+    </Suspense>
   );
 }

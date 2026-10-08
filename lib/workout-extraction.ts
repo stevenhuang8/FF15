@@ -10,6 +10,18 @@ import type {
   WorkoutMetadata,
   WorkoutValidation,
 } from '@/types/workout';
+import { getWorkoutSection } from '@/lib/message-sections';
+
+// Labelled lines that describe the plan rather than an exercise (e.g. "**Progression:** ...")
+const NON_EXERCISE_LABEL_PATTERN =
+  /^(?:progression|tips?|notes?|rest|recovery|frequency|why|key|important|optional|schedule|timing|goal|focus|reminder)\b[^:]{0,30}:/i;
+
+// Set x rep schemes like "4×6–10", "3x8-12/leg", "2-3 x 12-20"
+const SET_REP_PATTERN = /(\d+(?:-\d+)?)\s*[x×]\s*(\d+(?:-\d+)?)(\s*\/\s*(?:leg|side|arm))?/i;
+
+function normalizeDashes(text: string): string {
+  return text.replace(/[\u2013\u2014]/g, '-');
+}
 
 /**
  * Extracts workout title from text
@@ -31,7 +43,7 @@ export function extractTitle(text: string): string | null {
   for (const line of lines) {
     const match = line.match(headerPattern);
     if (match) {
-      const title = match[1].trim();
+      const title = match[1].replace(/\*\*/g, '').trim();
       // Filter out common section headers
       const excludedHeaders = ['exercises', 'warm-up', 'cool-down', 'notes', 'equipment'];
       if (!excludedHeaders.some(h => title.toLowerCase().includes(h))) {
@@ -48,7 +60,7 @@ export function extractTitle(text: string): string | null {
       trimmed.length < 80 &&
       !trimmed.match(/^(exercises|warm-up|cool-down|equipment|notes):/i) &&
       !trimmed.match(/^\d+\./) && // not a numbered list
-      !trimmed.match(/^[-*•]/) // not a bulleted list
+      !trimmed.match(/^(?:[-•]|\*(?!\*))/) // not a bulleted list
     ) {
       return trimmed;
     }
@@ -157,13 +169,15 @@ export function extractExercises(text: string): WorkoutExercise[] {
     console.log('💪 No exercises header found, trying fallback detection...');
     for (const line of lines) {
       const trimmed = line.trim();
+      if (isNonExerciseLine(trimmed)) continue;
       // Look for lines that match exercise patterns
       if (
-        trimmed.match(/^[-*•]\s*/) || // bulleted
+        trimmed.match(/^(?:[-•]|\*(?!\*))\s*/) || // bulleted
         trimmed.match(/^\d+[\.)]\s*/) || // numbered
         trimmed.match(/\d+\s*sets?/i) || // has "sets"
         trimmed.match(/\d+\s*reps?/i) || // has "reps"
-        trimmed.match(/\d+\s*(?:seconds?|minutes?)/i) // has duration
+        trimmed.match(/\d+\s*(?:seconds?|minutes?)/i) || // has duration
+        SET_REP_PATTERN.test(trimmed) // has "3x10" scheme
       ) {
         exerciseLines.push(trimmed);
       }
@@ -173,13 +187,95 @@ export function extractExercises(text: string): WorkoutExercise[] {
 
   // Parse each exercise line
   for (const line of exerciseLines) {
-    const exercise = parseExerciseLine(line);
-    if (exercise) {
-      exercises.push(exercise);
-    }
+    if (isNonExerciseLine(line)) continue;
+    exercises.push(...parseExerciseLines(line));
   }
 
   return exercises;
+}
+
+/**
+ * Whether a line is commentary (progression notes, tips, questions) rather than an exercise
+ */
+function isNonExerciseLine(line: string): boolean {
+  const cleaned = stripListMarker(line).replace(/\*\*/g, '').trim();
+  return NON_EXERCISE_LABEL_PATTERN.test(cleaned) || cleaned.endsWith('?');
+}
+
+function stripListMarker(line: string): string {
+  return line.replace(/^(?:[-•]|\*(?!\*))\s*/, '').replace(/^\d+[\.)]\s*/, '').trim();
+}
+
+/**
+ * Splits text on commas that are not inside parentheses
+ */
+function splitTopLevelCommas(text: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const char of text) {
+    if (char === '(') depth++;
+    if (char === ')') depth = Math.max(0, depth - 1);
+    if (char === ',' && depth === 0) {
+      parts.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  parts.push(current);
+  return parts.map(p => p.trim()).filter(p => p.length > 0);
+}
+
+/**
+ * Parses a line that may hold several exercises, e.g.
+ * "Day 1 (Heavy thrust + hinge): Hip thrust 4×6–10, RDL 3×6–10, kickbacks 2–3×12–20"
+ */
+function parseExerciseLines(line: string): WorkoutExercise[] {
+  const cleaned = normalizeDashes(stripListMarker(line).replace(/\*\*/g, ''));
+
+  const labelMatch = cleaned.match(/^([^:]+):\s*(.+)$/);
+  if (labelMatch) {
+    const parts = splitTopLevelCommas(labelMatch[2]);
+    const schemeParts = parts.filter(p => SET_REP_PATTERN.test(p));
+    if (schemeParts.length >= 2) {
+      const label = labelMatch[1].trim();
+      return parts
+        .map(part => parseSchemeExercise(part, label))
+        .filter((e): e is WorkoutExercise => e !== null);
+    }
+  }
+
+  const exercise = parseExerciseLine(cleaned);
+  return exercise ? [exercise] : [];
+}
+
+/**
+ * Parses "Hip thrust 4×6-10" / "abduction drop-set 2 rounds" into an exercise
+ */
+function parseSchemeExercise(text: string, groupLabel?: string): WorkoutExercise | null {
+  const exercise: WorkoutExercise = { name: text.trim() };
+  const notes: string[] = [];
+  if (groupLabel) notes.push(groupLabel);
+
+  const schemeMatch = text.match(SET_REP_PATTERN);
+  if (schemeMatch && schemeMatch.index !== undefined) {
+    exercise.name = text.slice(0, schemeMatch.index).trim();
+    exercise.sets = parseInt(schemeMatch[1], 10);
+    if (schemeMatch[1].includes('-')) notes.push(`${schemeMatch[1]} sets`);
+    exercise.reps = schemeMatch[2] + (schemeMatch[3]?.replace(/\s/g, '') ?? '');
+  } else {
+    const roundsMatch = text.match(/(\d+)\s*(?:rounds?|sets?)/i);
+    if (roundsMatch && roundsMatch.index !== undefined) {
+      exercise.name = text.slice(0, roundsMatch.index).trim();
+      exercise.sets = parseInt(roundsMatch[1], 10);
+    }
+  }
+
+  if (notes.length > 0) exercise.notes = notes.join(' · ');
+
+  if (exercise.name.length < 3) return null;
+  return exercise;
 }
 
 /**
@@ -187,7 +283,7 @@ export function extractExercises(text: string): WorkoutExercise[] {
  */
 function parseExerciseLine(line: string): WorkoutExercise | null {
   // Remove bullet points and list markers
-  let cleaned = line.replace(/^[-*•]\s*/, '').replace(/^\d+[\.)]\s*/, '').trim();
+  let cleaned = line.replace(/^(?:[-•]|\*(?!\*))\s*/, '').replace(/^\d+[\.)]\s*/, '').trim();
 
   if (cleaned.length === 0) return null;
 
@@ -204,8 +300,8 @@ function parseExerciseLine(line: string): WorkoutExercise | null {
     name: '',
   };
 
-  // Extract name (everything before first : or -)
-  const nameSeparatorMatch = cleaned.match(/^([^:-]+)[\s]*[:-]\s*(.+)/);
+  // Extract name (everything before first ":" or " - ", so "Push-ups" stays intact)
+  const nameSeparatorMatch = cleaned.match(/^(.+?)\s*(?::|\s-\s)\s*(.+)/);
   if (nameSeparatorMatch) {
     exercise.name = nameSeparatorMatch[1].trim();
     const detailsText = nameSeparatorMatch[2];
@@ -222,9 +318,16 @@ function parseExerciseLine(line: string): WorkoutExercise | null {
       exercise.reps = repsMatch[1];
     }
 
+    // Extract "3x10" style schemes when sets/reps weren't spelled out
+    const schemeMatch = detailsText.match(SET_REP_PATTERN);
+    if (schemeMatch && !setsMatch && !repsMatch) {
+      exercise.sets = parseInt(schemeMatch[1], 10);
+      exercise.reps = schemeMatch[2] + (schemeMatch[3]?.replace(/\s/g, '') ?? '');
+    }
+
     // Extract duration
     const durationMatch = detailsText.match(/(\d+\s*(?:seconds?|minutes?|sec|min))/i);
-    if (durationMatch && !repsMatch) { // Only set duration if no reps found
+    if (durationMatch && !repsMatch && !schemeMatch) { // Only set duration if no reps found
       exercise.duration = durationMatch[1];
     }
 
@@ -253,6 +356,9 @@ function parseExerciseLine(line: string): WorkoutExercise | null {
         exercise.rest = restParenMatch[1];
       }
     }
+  } else if (SET_REP_PATTERN.test(cleaned)) {
+    // "Hip thrust 4x6-10"
+    return parseSchemeExercise(cleaned);
   } else {
     // No separator found, just use the whole line as name
     exercise.name = cleaned;
@@ -332,7 +438,9 @@ export function extractMetadata(text: string): WorkoutMetadata {
 /**
  * Main extraction function that combines all extractors
  */
-export function extractWorkout(text: string): ExtractedWorkout {
+export function extractWorkout(messageText: string): ExtractedWorkout {
+  // Only parse the workout part of messages that also contain a recipe
+  const text = getWorkoutSection(messageText);
   console.log('🔍 Extracting workout from text:', text.substring(0, 200) + '...');
 
   const title = extractTitle(text) || 'Untitled Workout';

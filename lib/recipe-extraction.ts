@@ -12,6 +12,20 @@ import type {
   RecipeNutrition,
   RecipeValidation,
 } from '@/types/recipe';
+import { getRecipeSection } from '@/lib/message-sections';
+
+// Labelled lines that describe the recipe rather than list an ingredient (e.g. "**Approx macros:** ...")
+const NON_INGREDIENT_LABEL_PATTERN =
+  /^(?:approx\.?\s*)?(?:macros?|nutrition|calories|best timing|timing|tips?|notes?|why|serving suggestions?|serve with|swaps?|make it|optional|storage)\b[^:]{0,30}:/i;
+
+function isNonIngredientLine(line: string): boolean {
+  const cleaned = line
+    .replace(/^(?:[-•]|\*(?!\*))\s*/, '')
+    .replace(/^\d+[\.)]\s*/, '')
+    .replace(/\*\*/g, '')
+    .trim();
+  return NON_INGREDIENT_LABEL_PATTERN.test(cleaned) || cleaned.endsWith('?');
+}
 
 /**
  * Extracts recipe title from text
@@ -31,10 +45,18 @@ export function extractTitle(text: string): string | null {
 
   // Pattern 2: Look for markdown headers (# Recipe Name or ## Recipe Name)
   const headerPattern = /^#{1,3}\s+(.+)/;
-  for (const line of lines) {
-    const match = line.match(headerPattern);
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].match(headerPattern);
     if (match) {
-      const title = match[1].trim();
+      // A standalone bold line right under the header is the dish name
+      // (e.g. "## Recipe to fuel glute growth" followed by "**Turkey Taco Rice Bowl**")
+      const nextLine = lines.slice(i + 1).find(l => l.trim().length > 0)?.trim();
+      const boldMatch = nextLine?.match(/^\*\*([^*]+)\*\*$/);
+      if (boldMatch && !boldMatch[1].trim().endsWith(':')) {
+        return boldMatch[1].trim();
+      }
+
+      const title = match[1].replace(/\*\*/g, '').trim();
       // Filter out common section headers
       const excludedHeaders = ['ingredients', 'instructions', 'directions', 'nutrition', 'notes'];
       if (!excludedHeaders.some(h => title.toLowerCase().includes(h))) {
@@ -51,9 +73,9 @@ export function extractTitle(text: string): string | null {
       trimmed.length < 80 &&
       !trimmed.match(/^(ingredients|instructions|directions|preparation|nutrition|notes):/i) &&
       !trimmed.match(/^\d+\./) && // not a numbered list
-      !trimmed.match(/^[-*•]/) // not a bulleted list
+      !trimmed.match(/^(?:[-•]|\*(?!\*))/) // not a bulleted list
     ) {
-      return trimmed;
+      return trimmed.replace(/\*\*/g, '').trim();
     }
   }
 
@@ -162,9 +184,11 @@ export function extractIngredients(text: string): RecipeIngredient[] {
         break;
       }
 
+      if (isNonIngredientLine(line)) continue;
+
       // Collect lines that look like ingredients (have measurements or bullet points)
       if (
-        line.match(/^[-*•]\s*/) || // bulleted
+        line.match(/^(?:[-•]|\*(?!\*))\s*/) || // bulleted
         line.match(/^\d+[\.)]\s*/) || // numbered
         line.match(/\d+\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|oz|ounces?|lb|lbs|pounds?|g|grams?|kg|ml|l|liters?)/i) // has measurements
       ) {
@@ -175,11 +199,14 @@ export function extractIngredients(text: string): RecipeIngredient[] {
     console.log('🥕 Fallback found', ingredientLines.length, 'ingredient lines');
   }
 
-  // Parse each ingredient line
+  // Parse each ingredient line ("6 oz turkey + 1 cup rice" holds several ingredients)
   for (const line of ingredientLines) {
-    const ingredient = parseIngredientLine(line);
-    if (ingredient) {
-      ingredients.push(ingredient);
+    if (isNonIngredientLine(line)) continue;
+    for (const part of line.split(/\s\+\s/)) {
+      const ingredient = parseIngredientLine(part);
+      if (ingredient) {
+        ingredients.push(ingredient);
+      }
     }
   }
 
@@ -191,7 +218,7 @@ export function extractIngredients(text: string): RecipeIngredient[] {
  */
 function parseIngredientLine(line: string): RecipeIngredient | null {
   // Remove bullet points and list markers
-  let cleaned = line.replace(/^[-*•]\s*/, '').replace(/^\d+[\.)]\s*/, '').trim();
+  let cleaned = line.replace(/^(?:[-•]|\*(?!\*))\s*/, '').replace(/^\d+[\.)]\s*/, '').replace(/\*\*/g, '').trim();
 
   if (cleaned.length === 0) return null;
 
@@ -312,7 +339,7 @@ export function extractInstructions(text: string): RecipeInstruction[] {
       }
 
       // Handle bulleted steps
-      const bulletMatch = trimmed.match(/^[-*•]\s*(.+)/);
+      const bulletMatch = trimmed.match(/^(?:[-•]|\*(?!\*))\s*(.+)/);
       if (bulletMatch) {
         instructions.push({
           step: stepNumber++,
@@ -366,7 +393,10 @@ export function extractMetadata(text: string): RecipeMetadata {
   if (servingsMatch) {
     metadata.servings = servingsMatch[1];
   } else {
-    const yieldsMatch = text.match(/yields?:\s*(\d+(?:-\d+)?)/i);
+    const yieldsMatch =
+      text.match(/yields?:\s*(\d+(?:-\d+)?)/i) ||
+      text.match(/\b(?:serves|makes)\s+(\d+(?:-\d+)?)/i) ||
+      text.match(/\((\d+(?:-\d+)?)\s+servings?\)/i);
     if (yieldsMatch) {
       metadata.servings = yieldsMatch[1];
     }
@@ -412,43 +442,50 @@ export function extractNutrition(text: string): RecipeNutrition | null {
   const nutrition: RecipeNutrition = {};
   let hasNutrition = false;
 
+  // Matches "protein: 41g" or "41g protein"
+  const macro = (label: string, unit = 'g') =>
+    text.match(new RegExp(`${label}:\\s*([\\d.]+\\s*${unit})`, 'i')) ||
+    text.match(new RegExp(`([\\d.]+\\s*${unit})\\s+(?:of\\s+)?${label}\\b`, 'i'));
+
   // Extract calories
-  const caloriesMatch = text.match(/calories?:\s*(\d+)/i);
+  const caloriesMatch =
+    text.match(/calories?:\s*(\d+)/i) ||
+    text.match(/(\d+)\s*(?:kcal|calories|cals?)\b/i);
   if (caloriesMatch) {
     nutrition.calories = parseInt(caloriesMatch[1], 10);
     hasNutrition = true;
   }
 
   // Extract protein
-  const proteinMatch = text.match(/protein:\s*([\d.]+\s*g)/i);
+  const proteinMatch = macro('protein');
   if (proteinMatch) {
     nutrition.protein = proteinMatch[1];
     hasNutrition = true;
   }
 
   // Extract carbs
-  const carbsMatch = text.match(/carb(?:ohydrate)?s?:\s*([\d.]+\s*g)/i);
+  const carbsMatch = macro('carb(?:ohydrate)?s?');
   if (carbsMatch) {
     nutrition.carbs = carbsMatch[1];
     hasNutrition = true;
   }
 
   // Extract fat
-  const fatMatch = text.match(/fat:\s*([\d.]+\s*g)/i);
+  const fatMatch = macro('fat');
   if (fatMatch) {
     nutrition.fat = fatMatch[1];
     hasNutrition = true;
   }
 
   // Extract fiber
-  const fiberMatch = text.match(/fiber:\s*([\d.]+\s*g)/i);
+  const fiberMatch = macro('fiber');
   if (fiberMatch) {
     nutrition.fiber = fiberMatch[1];
     hasNutrition = true;
   }
 
   // Extract sugar
-  const sugarMatch = text.match(/sugar:\s*([\d.]+\s*g)/i);
+  const sugarMatch = macro('sugars?');
   if (sugarMatch) {
     nutrition.sugar = sugarMatch[1];
     hasNutrition = true;
@@ -503,7 +540,9 @@ export function extractTags(text: string): string[] {
 /**
  * Main extraction function that combines all extractors
  */
-export function extractRecipe(text: string): ExtractedRecipe {
+export function extractRecipe(messageText: string): ExtractedRecipe {
+  // Only parse the recipe part of messages that also contain a workout
+  const text = getRecipeSection(messageText);
   console.log('🔍 Extracting recipe from text:', text.substring(0, 200) + '...');
 
   const title = extractTitle(text) || 'Untitled Recipe';
@@ -563,8 +602,9 @@ export function validateRecipe(recipe: ExtractedRecipe): RecipeValidation {
     warnings.push('Only one ingredient found - recipe may be incomplete');
   }
 
+  // Quick recipes are often given as an ingredient list without steps - still saveable
   if (recipe.instructions.length === 0) {
-    errors.push('No instructions found');
+    warnings.push('No instructions found');
   } else if (recipe.instructions.length < 2) {
     warnings.push('Only one instruction step found - recipe may be incomplete');
   }

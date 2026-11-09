@@ -1,11 +1,11 @@
 # Food & Fitness AI (FF Coach)
 
-An intelligent AI-powered platform combining cooking mastery with fitness excellence. Built on Next.js 16 with a sophisticated multi-agent architecture featuring 9 specialized AI subagents and 27 tools, Claude vision image analysis, and comprehensive health tracking.
+An intelligent AI-powered platform combining cooking mastery with fitness excellence. Built on Next.js 16 with a sophisticated multi-agent architecture featuring 8 specialized AI subagents and 27 tools, Claude vision image analysis, and comprehensive health tracking.
 
 ## Core Capabilities
 
 ### 🤖 AI Conversational Interface
-- **Multi-agent orchestration** with 9 specialized subagents for domain expertise
+- **Multi-agent orchestration** with 8 specialized subagents for domain expertise
 - **Streaming responses** with real-time tool execution visibility
 - **Claude vision integration** for meal photo analysis and ingredient extraction
 - **RAG-powered knowledge retrieval** via Vectorize for accurate cooking and fitness guidance
@@ -78,7 +78,7 @@ An intelligent AI-powered platform combining cooking mastery with fitness excell
 
 ### Backend
 - **Next.js API Routes** for serverless backend
-- **AI SDK 7** (`streamText`, `generateObject`) for AI integration
+- **AI SDK 7** (`streamText`, `generateText`) for AI integration
 - **Claude Sonnet 5.5** for conversational AI and vision-powered image analysis
 - **Claude Haiku 5.5** for nutrition estimation
 - **Supabase** for authentication and PostgreSQL database
@@ -97,7 +97,7 @@ An intelligent AI-powered platform combining cooking mastery with fitness excell
 
 ## Multi-Agent Architecture
 
-The application uses a main orchestrator that automatically delegates to 9 specialized subagents:
+The application uses a main orchestrator that automatically delegates to 8 specialized subagents:
 
 ### Subagents
 
@@ -109,7 +109,6 @@ The application uses a main orchestrator that automatically delegates to 9 speci
 6. **pantry-manager** - Pantry-based recipe suggestions, inventory optimization
 7. **workout-planner** - Personalized fitness routines, exercise recommendations
 8. **profile-manager** - User preferences, goals, dietary restrictions management
-9. **admin-assistant** - Administrative tasks and system management
 
 ### AI Tools (27 Total)
 
@@ -153,7 +152,7 @@ The application uses a main orchestrator that automatically delegates to 9 speci
 
 ### Ingredient Extraction from Images
 1. User uploads receipt, packaging, or ingredient list photo
-2. `/api/extract-ingredients` endpoint uses `generateObject()` with Claude Sonnet 5.5
+2. `/api/extract-ingredients` endpoint uses `generateText()` structured output with Claude Sonnet 5.5
 3. AI extracts ingredient names, quantities, units with confidence scores
 4. Structured data returned with automatic unit normalization
 
@@ -219,7 +218,7 @@ FF15/
 │   └── layout.tsx                # Root layout with navbar
 ├── components/
 │   ├── agent/
-│   │   ├── subagents/            # 9 specialized subagents
+│   │   ├── subagents/            # 8 specialized subagents
 │   │   ├── tools/                # 27 AI tool implementations
 │   │   ├── orchestrator-prompt.ts
 │   │   └── prompt.ts

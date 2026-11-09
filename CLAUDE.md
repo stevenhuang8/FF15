@@ -19,11 +19,11 @@ This project strictly uses **pnpm**. Do not use npm or yarn.
 
 ## Architecture
 
-This is a TypeScript Next.js 15 starter template for AI-powered applications with a travel agent theme:
+This is a TypeScript Next.js 16 application: an AI-powered cooking and fitness coach built around a multi-agent chat.
 
 ### Core Stack
 
-- **Next.js 15** with App Router and Turbopack for fast builds
+- **Next.js 16** with App Router and Turbopack for fast builds
 - **AI SDK 7** with Anthropic Claude Sonnet 5.5 integration and web search tool
 - **Vectorize** for RAG document retrieval from your knowledge base
 - **shadcn/ui** components (New York style, neutral base color)
@@ -33,12 +33,15 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 
 - `app/` - Next.js App Router pages and API routes
 - `app/api/chat/` - AI chat endpoint using streaming `streamText()`
-- `app/api/rag-agent/` - RAG-enabled agent endpoint with knowledge base access
+- `app/api/agent-with-mcp-tools/` - Web-scraping agent using Firecrawl MCP tools
+- `app/api/extract-ingredients/` - Ingredient extraction from images using structured output
 - `components/chat/` - Chat interface components
 - `components/ai-elements/` - Vercel AI Elements components
 - `components/agent/` - Agent configuration (system prompts)
-  - `prompt.ts` - Default Cooking and Recipes agent system prompt
-  - `rag-prompt.ts` - RAG agent system prompt for cooking and recipes
+  - `orchestrator-prompt.ts` - Main orchestrator system prompt used by `/api/chat`
+  - `web-scraper-prompt.ts` - System prompt for the Firecrawl MCP agent
+  - `prompt.ts` - Legacy single-agent prompt (not currently imported)
+- `components/agent/subagents/` - Subagent definitions (prompt and allowed tools)
 - `components/agent/tools/` - AI SDK tools for agent capabilities (knowledge base retrieval, etc.)
 - `components/ui/` - shadcn/ui components
 - `lib/retrieval/` - Vectorize RAG service for document retrieval
@@ -50,9 +53,10 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 - Uses AI SDK 7's `streamText()` for streaming responses
 - Configured for **Claude Sonnet 5.5** (`claude-sonnet-5-5`) via the Anthropic provider (`@ai-sdk/anthropic`) with web search tool enabled; the nutrition estimator uses `claude-haiku-5-5`
 - Vectorize RAG integration via `VectorizeService` in `/lib/retrieval/`
-- System instructions defined in `components/agent/prompt.ts` (travel agent theme)
+- System instructions defined in `components/agent/orchestrator-prompt.ts`
+- Structured output uses `generateText()` with `output: Output.object({ schema })` and reads `result.output`; `generateObject()` is deprecated
 - API route at `/api/chat` expects `{ messages: Array }` and returns streaming text
-- RAG-enabled agent at `/api/rag-agent` includes `retrieveKnowledgeBase` tool for knowledge base access
+- Firecrawl web-scraping agent at `/api/agent-with-mcp-tools` loads its tools from an MCP client
 - use useChat for all streaming handling (read the doc first, always, before writing any streaming code: https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat)
 - **CRITICAL**: `sendMessage()` from useChat ONLY accepts UIMessage-compatible objects: `sendMessage({ text: "message" })`
 - **NEVER** use `sendMessage("string")` - this does NOT work and will cause runtime errors
@@ -108,16 +112,16 @@ The returned data is automatically included in the tool call result and streamed
 ```typescript
 // Extract sources from tool results in the UI
 const ragToolCalls = message.parts?.filter(
-  part => part.type === "tool" && part.toolName === "retrieveKnowledgeBase" && part.result?.sources
+  part => part.type === "tool-retrieveKnowledgeBase" && part.output?.sources
 );
 
-const sources = ragToolCalls?.flatMap(tool => tool.result?.sources || []) || [];
+const sources = ragToolCalls?.flatMap(tool => tool.output?.sources || []) || [];
 ```
 
 **Chat Component with Custom API Endpoint**:
 ```typescript
 // Use ChatAssistant with custom API endpoint
-<ChatAssistant api="/api/rag-agent" />
+<ChatAssistant api="/api/agent-with-mcp-tools" />
 
 // ChatAssistant component supports optional api prop
 interface ChatAssistantProps {
@@ -253,8 +257,8 @@ When creating new tools:
 6. Add the tool to the appropriate API route's tools configuration
 
 When creating new agents:
-1. Follow the pattern established in `/app/api/rag-agent/route.ts`
-2. Create new prompts in `/components/agent/` following the structure of `prompt.ts` and `rag-prompt.ts`
+1. Follow the pattern established in `/app/api/chat/route.ts`
+2. Create new prompts in `/components/agent/` following the structure of `orchestrator-prompt.ts` and `web-scraper-prompt.ts`
 3. Use the same streaming patterns and error handling as existing agents
 4. Always include proper tool configurations and import from `/components/agent/tools`
 
@@ -301,20 +305,14 @@ Display tool execution states using AI Elements:
 
 ```typescript
 // In ChatAssistant component
-{message.parts?.filter(part => part.type === "tool").map((part, i) => {
-  const toolState = part.result
-    ? "output-available"
-    : part.input
-      ? "input-available"
-      : "input-streaming";
-
+{message.parts?.filter(part => part.type.startsWith("tool-")).map((part, i) => {
   return (
     <Tool defaultOpen={true}>
-      <ToolHeader type={`tool-${part.toolName}`} state={toolState} />
+      <ToolHeader type={part.type} state={part.state} />
       <ToolContent>
         {part.input && <ToolInput input={part.input} />}
-        {part.result && <ToolOutput output={part.result} />}
-        {toolState === "input-streaming" && (
+        {part.output && <ToolOutput output={part.output} />}
+        {part.state === "input-streaming" && (
           <div>🔍 Searching knowledge base...</div>
         )}
       </ToolContent>
@@ -375,9 +373,12 @@ components/agent/
 │   ├── meal-planner.ts            # Meal planning and prep
 │   ├── pantry-manager.ts          # Pantry-based suggestions
 │   ├── workout-planner.ts         # Fitness planning
+│   ├── profile-manager.ts         # User preferences and goals
 │   └── index.ts                   # Export registry
 ├── tools/                          # Tool implementations
+│   └── subagent-tools.ts          # Wraps each subagent as an invoke* tool
 ├── prompt.ts                       # Legacy single-agent prompt
+├── web-scraper-prompt.ts           # Firecrawl MCP agent prompt
 └── orchestrator-prompt.ts         # Main orchestrator prompt
 ```
 
@@ -387,7 +388,7 @@ Based on Claude docs, restrict tools by subagent role:
 
 ```typescript
 // Read-only analysis
-tools: ['Read', 'Grep', 'Glob', 'retrieveKnowledgeBase']
+tools: ['getUserContext', 'retrieveKnowledgeBase']
 
 // Research with web access
 tools: ['retrieveKnowledgeBase', 'web_search']
@@ -427,7 +428,7 @@ Multiple subagents can execute simultaneously for complex queries:
 
 #### Application-Specific Subagents
 
-This cooking/fitness app implements 7 specialized subagents:
+This cooking/fitness app implements 8 specialized subagents:
 
 1. **cooking-assistant**: Real-time cooking guidance, timing, troubleshooting
 2. **recipe-researcher**: Deep research on recipes, cuisines, techniques, history
@@ -436,15 +437,17 @@ This cooking/fitness app implements 7 specialized subagents:
 5. **meal-planner**: Weekly meal prep, grocery lists, batch cooking
 6. **pantry-manager**: Pantry-based recipe suggestions, inventory optimization
 7. **workout-planner**: Personalized fitness routines and exercise guidance
+8. **profile-manager**: User preferences, allergies, and fitness goals
 
 **Tool Access per Subagent:**
-- `cooking-assistant`: retrieveKnowledgeBase, web_search
-- `recipe-researcher`: retrieveKnowledgeBase, web_search, Firecrawl MCP tools
-- `ingredient-specialist`: suggestSubstitution, retrieveKnowledgeBase
-- `nutrition-analyst`: retrieveKnowledgeBase, web_search
-- `meal-planner`: generateRecipeFromIngredients, retrieveKnowledgeBase
-- `pantry-manager`: generateRecipeFromIngredients, retrieveKnowledgeBase
-- `workout-planner`: recommendWorkout, retrieveKnowledgeBase
+- `cooking-assistant`: getUserContext, retrieveKnowledgeBase, web_search
+- `recipe-researcher`: retrieveKnowledgeBase, web_search
+- `ingredient-specialist`: getUserContext, suggestSubstitution, retrieveKnowledgeBase
+- `nutrition-analyst`: getUserContext, retrieveKnowledgeBase, web_search, searchFoodNutrition, logMealPreview, confirmMealLog
+- `meal-planner`: getUserContext, generateRecipeFromIngredients, retrieveKnowledgeBase, logMealPreview, confirmMealLog
+- `pantry-manager`: getUserContext, generateRecipeFromIngredients, retrieveKnowledgeBase
+- `workout-planner`: getUserContext, recommendWorkout, retrieveKnowledgeBase, logWorkoutPreview, confirmWorkoutLog
+- `profile-manager`: updateDietaryPreferences, confirmDietaryPreferencesUpdate, updateAllergiesPreview, confirmAllergiesUpdate, updateFitnessGoalsPreview, confirmFitnessGoalsUpdate
 
 #### Integration Pattern
 
@@ -452,17 +455,23 @@ This cooking/fitness app implements 7 specialized subagents:
 ```typescript
 import { streamText, convertToModelMessages, isStepCount } from 'ai';
 import { ORCHESTRATOR_PROMPT } from '@/components/agent/orchestrator-prompt';
-import { SUBAGENTS } from '@/components/agent/subagents';
+import { invokeCookingAssistant, invokeRecipeResearcher } from '@/components/agent/tools';
 
 const result = streamText({
   model: anthropic('claude-sonnet-5-5'),
   instructions: ORCHESTRATOR_PROMPT,
   messages: modelMessages,
-  stopWhen: isStepCount(15), // More steps for multi-agent orchestration
-  tools: { /* all available tools */ },
-  agents: SUBAGENTS, // Programmatic subagent definitions
+  stopWhen: isStepCount(30), // More steps for multi-agent orchestration
+  tools: {
+    // Each invoke* tool runs its subagent as a ToolLoopAgent with restricted tools
+    invokeCookingAssistant,
+    invokeRecipeResearcher,
+    // ...remaining subagents and direct tools
+  },
 });
 ```
+
+`streamText` has no `agents` option. Delegation happens through the `invoke*` tools built by `createSubagentTool()` in `components/agent/tools/subagent-tools.ts`. To add a subagent, define it in `components/agent/subagents/`, wrap it there, and add the tool to the route.
 
 #### Context Editing for Long-Running Agents
 
@@ -483,7 +492,7 @@ const anthropic = new Anthropic({
 });
 
 const response = await anthropic.messages.create({
-  model: 'claude-sonnet-4-5-20250929',
+  model: 'claude-sonnet-5-5',
   max_tokens: 4096,
   betas: ['context-management-2025-06-27'],
   context_management: {
@@ -555,37 +564,33 @@ const response = await anthropic.messages.create({
 **CRITICAL REQUIREMENT**: When building UI or frontend components, especially those that involve streaming AI-generated content, you MUST read the Generative UI documentation: https://ai-sdk.dev/docs/ai-sdk-ui/generative-user-interfaces
 
 This documentation is essential for understanding:
-- How to stream React components from the server to the client
-- Using `streamUI()` for generating interactive UI components
-- Server Actions with `createStreamableUI()` and `createStreamableValue()`
-- Client-side rendering of streamed components
+- How tool results connect to React components
+- Rendering typed `tool-*` message parts by their `state`
+- Client-side rendering with `useChat`
 - Best practices for generative UI patterns
 
 #### Generative UI Patterns
 
-The AI SDK supports streaming React components as part of AI responses, enabling dynamic, interactive UIs:
+Generative UI in AI SDK 7 means rendering a React component from a tool's result. The `ai/rsc` entry point and `streamUI()` are not available in the installed SDK.
 
 ```typescript
-// Server-side with streamUI()
-import { streamUI } from 'ai/rsc'
+// Server: an ordinary tool
+export const showRecipe = tool({
+  description: 'Display a recipe',
+  inputSchema: z.object({
+    title: z.string(),
+    ingredients: z.array(z.string()),
+  }),
+  execute: async ({ title, ingredients }) => ({ title, ingredients }),
+});
 
-const result = await streamUI({
-  model: openai('gpt-4'),
-  messages,
-  text: ({ content }) => <div>{content}</div>,
-  tools: {
-    showRecipe: {
-      description: 'Display a recipe',
-      parameters: z.object({
-        title: z.string(),
-        ingredients: z.array(z.string()),
-      }),
-      generate: async ({ title, ingredients }) => {
-        return <RecipeCard title={title} ingredients={ingredients} />
-      }
-    }
+// Client: render the matching message part
+{message.parts.map((part, i) => {
+  if (part.type === 'tool-showRecipe' && part.state === 'output-available') {
+    return <RecipeCard key={i} {...part.output} />;
   }
-})
+  return null;
+})}
 ```
 
 #### When to Use Generative UI

@@ -1,5 +1,5 @@
 import { anthropic } from "@ai-sdk/anthropic";
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Extracting ingredients from image:', imageUrl);
 
     // Use Claude vision to analyze the image and extract ingredients
-    const result = await generateObject({
+    const result = await generateText({
       model: anthropic("claude-sonnet-5-5"),
       providerOptions: { anthropic: { fallbacks: "default" } },
       messages: [
@@ -75,17 +75,17 @@ Be thorough but only include actual food ingredients, not household items or non
           ],
         },
       ],
-      schema: extractionResponseSchema,
+      output: Output.object({ schema: extractionResponseSchema }),
     });
 
     console.log('✅ Extraction complete:', {
-      ingredientCount: result.object.ingredients.length,
-      imageType: result.object.imageType,
-      confidence: result.object.overallConfidence,
+      ingredientCount: result.output.ingredients.length,
+      imageType: result.output.imageType,
+      confidence: result.output.overallConfidence,
     });
 
     return new Response(
-      JSON.stringify(result.object),
+      JSON.stringify(result.output),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' }

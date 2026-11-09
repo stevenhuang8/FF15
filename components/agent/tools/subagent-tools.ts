@@ -10,9 +10,9 @@
  * - Parallel execution when orchestrator issues multiple tool calls in one step
  */
 
-import { tool, ToolLoopAgent, readUIMessageStream } from 'ai';
+import { tool, ToolLoopAgent, readUIMessageStream, toUIMessageStream } from 'ai';
 import { z } from 'zod';
-import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
 
 // Import subagent definitions
 import { cookingAssistant } from '../subagents/cooking-assistant';
@@ -58,7 +58,7 @@ const toolRegistry: Record<string, any> = {
   confirmAllergiesUpdate,
   updateFitnessGoalsPreview,
   confirmFitnessGoalsUpdate,
-  web_search: openai.tools.webSearch({ searchContextSize: 'low' }),
+  web_search: anthropic.tools.webSearch_20260209({ maxUses: 5 }),
 };
 
 // Appended to every subagent prompt so off-topic tasks can't be delegated through
@@ -89,7 +89,8 @@ function createSubagentTool(
 
   // Instantiate ToolLoopAgent once — reused across all requests
   const agent = new ToolLoopAgent({
-    model: openai('gpt-5.2'),
+    model: anthropic('claude-sonnet-5-5'),
+    providerOptions: { anthropic: { effort: 'medium', fallbacks: 'default' } },
     instructions: `${basePrompt}\n\n${SUBAGENT_SCOPE_GUARD}`,
     tools: restrictedTools,
   });
@@ -121,7 +122,7 @@ function createSubagentTool(
       const result = await agent.stream({ prompt: contextualPrompt, abortSignal });
 
       for await (const message of readUIMessageStream({
-        stream: result.toUIMessageStream(),
+        stream: toUIMessageStream({ stream: result.stream }),
       })) {
         yield message;
       }

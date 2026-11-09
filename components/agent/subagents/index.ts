@@ -22,7 +22,7 @@ import { profileManager } from "./profile-manager";
  * import { SUBAGENTS } from '@/components/agent/subagents';
  *
  * const result = streamText({
- *   model: openai('gpt-5'),
+ *   model: anthropic('claude-sonnet-5-5'),
  *   agents: SUBAGENTS,
  *   // ... other options
  * });

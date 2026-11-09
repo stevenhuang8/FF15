@@ -1,7 +1,13 @@
 import { WEB_SCRAPER_SYSTEM_INSTRUCTIONS } from "@/components/agent/web-scraper-prompt";
 import { getFirecrawlMCPClient } from "@/lib/mcp";
-import { openai } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages, stepCountIs } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import {
+  streamText,
+  convertToModelMessages,
+  isStepCount,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
+} from "ai";
 import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -44,21 +50,23 @@ export async function POST(request: NextRequest) {
     );
 
     const result = streamText({
-      model: openai("gpt-5"),
-      system: WEB_SCRAPER_SYSTEM_INSTRUCTIONS,
+      model: anthropic("claude-sonnet-5-5"),
+      instructions: WEB_SCRAPER_SYSTEM_INSTRUCTIONS,
       messages: modelMessages,
       tools: wrappedTools,
-      stopWhen: stepCountIs(10),
+      stopWhen: isStepCount(10),
       providerOptions: {
-        openai: {
-          reasoning_effort: "low",
-          textVerbosity: "low",
-          reasoningSummary: "detailed",
+        anthropic: {
+          effort: "low",
+          thinking: { type: "adaptive", display: "summarized" },
+          fallbacks: "default",
         },
       },
     });
 
-    return result.toUIMessageStreamResponse();
+    return createUIMessageStreamResponse({
+      stream: toUIMessageStream({ stream: result.stream }),
+    });
   } catch (error) {
     console.error("💥 Agent API error:", error);
     return new Response("Failed to generate response", { status: 500 });

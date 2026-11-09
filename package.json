@@ -8,9 +8,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^1.0.102",
-    "@ai-sdk/openai": "^3.0.139",
-    "@ai-sdk/react": "^3.0.329",
+    "@ai-sdk/anthropic": "^4.0.99",
+    "@ai-sdk/mcp": "^2.0.93",
+    "@ai-sdk/react": "^4.0.170",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@hookform/resolvers": "^7.0.5",
     "@launchdarkly/node-server-sdk": "^9.16.4",
@@ -35,7 +35,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "@vectorize-io/vectorize-client": "^0.4.0",
-    "ai": "^6.0.326",
+    "ai": "^7.0.166",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

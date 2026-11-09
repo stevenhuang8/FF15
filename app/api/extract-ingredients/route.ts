@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -42,9 +42,10 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 Extracting ingredients from image:', imageUrl);
 
-    // Use GPT-4 Vision to analyze the image and extract ingredients
+    // Use Claude vision to analyze the image and extract ingredients
     const result = await generateObject({
-      model: openai("gpt-4o"), // gpt-4o has vision capabilities
+      model: anthropic("claude-sonnet-5-5"),
+      providerOptions: { anthropic: { fallbacks: "default" } },
       messages: [
         {
           role: "user",
@@ -67,14 +68,14 @@ Guidelines:
 Be thorough but only include actual food ingredients, not household items or non-food products.`,
             },
             {
-              type: "image",
-              image: imageUrl,
+              type: 'file',
+              data: imageUrl,
+              mediaType: 'image'
             },
           ],
         },
       ],
       schema: extractionResponseSchema,
-      temperature: 0.3, // Lower temperature for more consistent extraction
     });
 
     console.log('✅ Extraction complete:', {

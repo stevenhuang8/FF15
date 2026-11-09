@@ -24,7 +24,7 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 ### Core Stack
 
 - **Next.js 15** with App Router and Turbopack for fast builds
-- **AI SDK 6** with OpenAI GPT-5.2 integration and web search tool
+- **AI SDK 7** with Anthropic Claude Sonnet 5.5 integration and web search tool
 - **Vectorize** for RAG document retrieval from your knowledge base
 - **shadcn/ui** components (New York style, neutral base color)
 - **Tailwind CSS v4** for styling
@@ -47,11 +47,8 @@ This is a TypeScript Next.js 15 starter template for AI-powered applications wit
 
 ### AI Integration
 
-- Uses AI SDK 6's `streamText()` for streaming responses
-- Configured for **GPT-5.2** (OpenAI's latest model released December 2025) via OpenAI provider with web search tool enabled
-  - GPT-5.2 features adaptive reasoning that dynamically adjusts thinking time based on task complexity
-  - More conversational and natural responses compared to GPT-5
-  - API model ID: `gpt-5.2`
+- Uses AI SDK 7's `streamText()` for streaming responses
+- Configured for **Claude Sonnet 5.5** (`claude-sonnet-5-5`) via the Anthropic provider (`@ai-sdk/anthropic`) with web search tool enabled; the nutrition estimator uses `claude-haiku-5-5`
 - Vectorize RAG integration via `VectorizeService` in `/lib/retrieval/`
 - System instructions defined in `components/agent/prompt.ts` (travel agent theme)
 - API route at `/api/chat` expects `{ messages: Array }` and returns streaming text
@@ -74,7 +71,7 @@ This documentation is essential for understanding:
 - How tools are called by language models
 - Tool execution flow and lifecycle
 - Tool choice strategies (`auto`, `required`, `none`, specific tool)
-- Multi-step tool calling with `stopWhen` and `stepCountIs()`
+- Multi-step tool calling with `stopWhen` and `isStepCount()`
 - Tool call monitoring and error handling
 - Manual agent loops for complex tool workflows
 
@@ -142,21 +139,21 @@ const { messages, status, sendMessage } = useChat({
 
 - Keep tool return types simple to avoid TypeScript deep instantiation errors
 - Include sources directly in tool results for automatic streaming
-- Use the `toUIMessageStreamResponse()` method for proper client compatibility
+- Use `createUIMessageStreamResponse()` with `toUIMessageStream()` for proper client compatibility
 - Tool results are automatically included in the message parts array
 
-#### Current AI SDK API (v6.0+)
+#### Current AI SDK API (v7.0+)
 
 **IMPORTANT**: The AI SDK API has evolved. Always use current patterns:
 
-##### Multi-Step Tool Execution with `stepCountIs()`
+##### Multi-Step Tool Execution with `isStepCount()`
 
 ```typescript
 const result = streamText({
-  model: openai("gpt-5.2"),
+  model: anthropic("claude-sonnet-5-5"),
   messages: modelMessages,
   tools: { retrieveKnowledgeBase },
-  stopWhen: stepCountIs(10), // CURRENT API - replaces deprecated maxSteps
+  stopWhen: isStepCount(10), // CURRENT API - replaces deprecated maxSteps
 });
 ```
 
@@ -166,11 +163,11 @@ Control how and when tools are called using the `toolChoice` parameter:
 
 ```typescript
 const result = streamText({
-  model: openai("gpt-5.2"),
+  model: anthropic("claude-sonnet-5-5"),
   messages: modelMessages,
   tools: { retrieveKnowledgeBase },
   toolChoice: 'auto', // Options: 'auto', 'required', 'none', or specific tool name
-  stopWhen: stepCountIs(5),
+  stopWhen: isStepCount(5),
 });
 ```
 
@@ -181,18 +178,18 @@ const result = streamText({
 
 ##### Converting Tool Results to Source Data Parts
 
-**Current Approach (v6.0)**: The `response.steps` API is available in v6. Sources are currently displayed from tool results embedded in message parts.
+**Current Approach (v7.0)**: Sources are currently displayed from tool results embedded in message parts.
 
 ```typescript
-// Current working approach (v6.0)
+// Current working approach (v7.0)
 const result = streamText({
-  model: openai("gpt-5.2"),
+  model: anthropic("claude-sonnet-5-5"),
   messages: modelMessages,
   tools: { retrieveKnowledgeBase },
-  stopWhen: stepCountIs(10),
+  stopWhen: isStepCount(10),
 });
 
-return result.toUIMessageStreamResponse();
+return createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) });
 
 // Frontend extracts sources from tool results in message parts
 // See ChatAssistant component for implementation
@@ -203,13 +200,13 @@ return result.toUIMessageStreamResponse();
 const stream = createUIMessageStream({
   execute: async ({ writer }) => {
     const result = streamText({
-      model: openai("gpt-5.2"),
+      model: anthropic("claude-sonnet-5-5"),
       messages: modelMessages,
       tools: { retrieveKnowledgeBase },
-      stopWhen: stepCountIs(10),
+      stopWhen: isStepCount(10),
     });
 
-    writer.merge(result.toUIMessageStream());
+    writer.merge(toUIMessageStream({ stream: result.stream }));
 
     // This will work when response.steps is available
     const response = await result.response;
@@ -241,7 +238,7 @@ const stream = createUIMessageStream({
   - `execute`: Async function performing the tool's action
 - **Current Tools**:
   - `retrieveKnowledgeBase`: Searches the Vectorize knowledge base for relevant information
-  - `web_search`: OpenAI's web search tool for current information
+  - `web_search`: Anthropic's web search tool for current information
 
 #### Creating New Tools and Agents
 
@@ -453,15 +450,15 @@ This cooking/fitness app implements 7 specialized subagents:
 
 **Main Chat API Route:**
 ```typescript
-import { streamText, convertToModelMessages, stepCountIs } from 'ai';
+import { streamText, convertToModelMessages, isStepCount } from 'ai';
 import { ORCHESTRATOR_PROMPT } from '@/components/agent/orchestrator-prompt';
 import { SUBAGENTS } from '@/components/agent/subagents';
 
 const result = streamText({
-  model: openai('gpt-5.2'),
-  system: ORCHESTRATOR_PROMPT,
+  model: anthropic('claude-sonnet-5-5'),
+  instructions: ORCHESTRATOR_PROMPT,
   messages: modelMessages,
-  stopWhen: stepCountIs(15), // More steps for multi-agent orchestration
+  stopWhen: isStepCount(15), // More steps for multi-agent orchestration
   tools: { /* all available tools */ },
   agents: SUBAGENTS, // Programmatic subagent definitions
 });
@@ -527,7 +524,7 @@ const response = await anthropic.messages.create({
 ### Chat Architecture
 
 - **Frontend**: `ChatAssistant` component uses `useChat` hook from `@ai-sdk/react`
-- **API Route**: Validates messages, converts UIMessages to ModelMessages using `convertToModelMessages()`, streams response via `toTextStreamResponse()`
+- **API Route**: Validates messages, converts UIMessages to ModelMessages using `convertToModelMessages()`, streams response via `createUIMessageStreamResponse()`
 - **Message Format**: Messages have `parts` array with typed parts (text, tool, source-url, etc.), NOT simple `content` field
 - **Sending Messages**: MUST use `sendMessage({ text: "message" })` format - string format does NOT work
 - **Streaming**: Official `useChat` hook handles streaming automatically
@@ -617,7 +614,7 @@ This documentation is essential for understanding how to properly stream source 
 Create `.env.local` with:
 
 ```
-OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 VECTORIZE_ACCESS_TOKEN=your_vectorize_token
 VECTORIZE_ORG_ID=your_org_id
 VECTORIZE_PIPELINE_ID=your_pipeline_id

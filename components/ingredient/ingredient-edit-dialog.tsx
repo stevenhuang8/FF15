@@ -221,7 +221,7 @@ export function IngredientEditDialog({
                   mode="single"
                   selected={expiryDate}
                   onSelect={setExpiryDate}
-                  initialFocus
+                  autoFocus
                 />
                 {expiryDate && (
                   <div className="p-3 border-t">

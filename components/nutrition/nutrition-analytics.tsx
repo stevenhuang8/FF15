@@ -307,7 +307,7 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                       mode="single"
                       selected={customStartDate}
                       onSelect={setCustomStartDate}
-                      initialFocus
+                      autoFocus
                     />
                   </PopoverContent>
                 </Popover>
@@ -326,7 +326,7 @@ export function NutritionAnalytics({ className }: NutritionAnalyticsProps) {
                       mode="single"
                       selected={customEndDate}
                       onSelect={setCustomEndDate}
-                      initialFocus
+                      autoFocus
                     />
                   </PopoverContent>
                 </Popover>

@@ -44,8 +44,15 @@ import {
   invokeWorkoutPlanner,
   invokeProfileManager,
 } from "@/components/agent/tools";
-import { openai } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages, stepCountIs } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import {
+  streamText,
+  convertToModelMessages,
+  isStepCount,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
+  type UIMessage,
+} from "ai";
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -56,7 +63,7 @@ export const maxDuration = 300; // 300 seconds (5 min) for complex AI processing
 export const bodyParser = { sizeLimit: '10mb' };
 
 /**
- * Main Chat API Route with True Multi-Agent Orchestration (GPT-5.2)
+ * Main Chat API Route with True Multi-Agent Orchestration (Claude Sonnet 5.5)
  *
  * This endpoint implements TRUE subagents using the tool-based delegation pattern:
  *
@@ -70,7 +77,7 @@ export const bodyParser = { sizeLimit: '10mb' };
  * - workout-planner: Personalized fitness routines
  * - profile-manager: User preferences and goals management
  *
- * The main orchestrator (GPT-5.2) automatically delegates to specialized subagents
+ * The main orchestrator (Claude Sonnet 5.5) automatically delegates to specialized subagents
  * by calling invokeCookingAssistant, invokeRecipeResearcher, etc. as tools.
  * Each subagent runs in its own context with restricted tools for focused expertise.
  *
@@ -82,6 +89,22 @@ export const bodyParser = { sizeLimit: '10mb' };
  *
  * Implementation: /components/agent/tools/subagent-tools.ts
  */
+// Conversations saved before the move to Claude can contain OpenAI web search
+// results, which the Anthropic provider rejects when replaying history.
+function withoutOpenAIWebSearch(messages: UIMessage[]): UIMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    parts: message.parts.filter(
+      (part) =>
+        !(
+          part.type === "tool-web_search" &&
+          "output" in part &&
+          (part.output as { action?: unknown } | null)?.action
+        )
+    ),
+  }));
+}
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now(); // Track execution time
 
@@ -143,7 +166,7 @@ export async function POST(request: NextRequest) {
 
     console.log("📅 FRESH current date/time for this request:", formattedDate, "at", formattedTime);
 
-    const modelMessages = await convertToModelMessages(messages);
+    const modelMessages = await convertToModelMessages(withoutOpenAIWebSearch(messages));
 
     // Inject user ID, name, and current date/time into system prompt
     const systemPromptWithUserContext = ORCHESTRATOR_PROMPT
@@ -153,29 +176,26 @@ export async function POST(request: NextRequest) {
       .replace("{{CURRENT_TIME}}", formattedTime);
 
     const result = streamText({
-      model: openai("gpt-5.2"), // ✅ Upgraded to GPT-5.2 for faster adaptive reasoning
-      system: systemPromptWithUserContext,
+      model: anthropic("claude-sonnet-5-5"),
+      instructions: systemPromptWithUserContext,
       messages: modelMessages,
 
       // Enable multi-step reasoning for complex orchestration
       // Allows agent to use multiple tools and coordinate responses
       // Increased from 15 to 30 for multi-agent subagent delegation
-      stopWhen: stepCountIs(30),
+      stopWhen: isStepCount(30),
 
       providerOptions: {
-        openai: {
-          // GPT-5.2 uses adaptive reasoning - automatically decides when to think deeply
-          // "medium" effort for balanced quality and latency
-          reasoning_effort: "medium",
-          textVerbosity: "low",
-          reasoningSummary: "detailed",
-          // Allow the model to issue multiple tool calls in a single step so
-          // subagents can execute concurrently via Promise.all in the SDK
-          parallel_tool_calls: true,
+        anthropic: {
+          effort: "medium",
+          // Sonnet 5.5 hides reasoning unless a display mode is requested
+          thinking: { type: "adaptive", display: "summarized" },
+          // Retry safety-classifier declines on a fallback model
+          fallbacks: "default",
         },
       },
 
-      onStepFinish: ({ toolCalls, toolResults, finishReason }) => {
+      onStepEnd: ({ toolCalls, toolResults, finishReason }) => {
         if (toolCalls && toolCalls.length > 1) {
           console.log(`⚡ Parallel execution: ${toolCalls.length} tools in one step`);
         }
@@ -199,14 +219,13 @@ export async function POST(request: NextRequest) {
       },
 
       // Monitor total execution time to optimize maxDuration
-      onFinish: ({ response, finishReason }) => {
+      onEnd: ({ finishReason }) => {
         const executionTime = Date.now() - startTime;
         const executionSeconds = (executionTime / 1000).toFixed(2);
 
         console.log(`⏱️ Request completed:`, {
           executionTime: `${executionSeconds}s`,
           finishReason,
-          // Note: response.steps API available in AI SDK v6.0+
           warningIfSlow: executionTime > 120000 ? '⚠️ Took >2 minutes' : undefined,
         });
 
@@ -222,7 +241,7 @@ export async function POST(request: NextRequest) {
         // ========================================
         // SUBAGENT DELEGATION TOOLS (NEW!)
         // ========================================
-        // Each subagent runs its own GPT-5.2 instance with isolated context
+        // Each subagent runs its own Claude instance with isolated context
         // The orchestrator automatically chooses which subagent based on task description
         invokeCookingAssistant,
         invokeRecipeResearcher,
@@ -286,13 +305,13 @@ export async function POST(request: NextRequest) {
         updateStructuredGoal: updateStructuredGoalTool,
 
         // Web search
-        web_search: openai.tools.webSearch({
-          searchContextSize: "low",
-        }),
+        web_search: anthropic.tools.webSearch_20260209({ maxUses: 5 }),
       },
     });
 
-    return result.toUIMessageStreamResponse();
+    return createUIMessageStreamResponse({
+      stream: toUIMessageStream({ stream: result.stream }),
+    });
   } catch (error) {
     console.error("💥 Multi-agent orchestrator error:", error);
     return new Response("Failed to generate response", { status: 500 });

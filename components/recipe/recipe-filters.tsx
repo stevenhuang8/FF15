@@ -157,7 +157,7 @@ export function RecipeFilters({
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
-                  initialFocus
+                  autoFocus
                   mode="range"
                   defaultMonth={filters.dateRange?.from}
                   selected={filters.dateRange}

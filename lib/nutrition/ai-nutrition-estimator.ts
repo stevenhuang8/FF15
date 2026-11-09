@@ -4,8 +4,8 @@
  * Uses AI to estimate nutrition values based on food knowledge
  */
 
-import { generateObject } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { generateText, Output } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import type { NutritionData } from './types';
 
@@ -58,14 +58,13 @@ If the food name is vague or unclear, use the most common interpretation.
 
 For the serving size, choose a practical, commonly-used serving unit (e.g., g, oz, cup, piece, slice).`;
 
-    const result = await generateObject({
-      model: openai('gpt-4o-mini'), // Use mini model for cost efficiency
-      schema: nutritionEstimateSchema,
+    const result = await generateText({
+      model: anthropic('claude-haiku-5-5'), // Small model for cost efficiency
+      output: Output.object({ schema: nutritionEstimateSchema }),
       prompt,
-      temperature: 0.3, // Lower temperature for more consistent estimates
     });
 
-    const estimate = result.object;
+    const estimate = result.output;
 
     console.log(`✅ AI estimate complete (confidence: ${estimate.confidence})`);
     console.log(`   ${estimate.reasoning}`);

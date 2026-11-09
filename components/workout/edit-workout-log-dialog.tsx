@@ -289,7 +289,7 @@ export function EditWorkoutLogDialog({
                   mode="single"
                   selected={completedAt}
                   onSelect={(date) => date && setCompletedAt(date)}
-                  initialFocus
+                  autoFocus
                 />
               </PopoverContent>
             </Popover>

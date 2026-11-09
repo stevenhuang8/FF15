@@ -6,6 +6,10 @@ export async function proxy(request: NextRequest) {
     request,
   })
 
+  // Supabase only supplies these on a client's first cookie write, and the
+  // response is rebuilt on every setAll, so they have to be kept here.
+  const authCacheHeaders: Record<string, string> = {}
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -14,13 +18,17 @@ export async function proxy(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
+          )
+          Object.assign(authCacheHeaders, headers)
+          Object.entries(authCacheHeaders).forEach(([key, value]) =>
+            supabaseResponse.headers.set(key, value)
           )
         },
       },

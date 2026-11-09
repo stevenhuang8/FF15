@@ -17,16 +17,9 @@ import { profileManager } from "./profile-manager";
 /**
  * Complete registry of all subagents
  *
- * Usage in API routes:
- * ```typescript
- * import { SUBAGENTS } from '@/components/agent/subagents';
- *
- * const result = streamText({
- *   model: openai('gpt-5'),
- *   agents: SUBAGENTS,
- *   // ... other options
- * });
- * ```
+ * API routes don't use this registry directly. `streamText` has no `agents`
+ * option, so routes delegate through the invoke* tools built in
+ * `../tools/subagent-tools.ts`.
  */
 export const SUBAGENTS: SubagentRegistry = {
   "cooking-assistant": cookingAssistant,

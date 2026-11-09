@@ -348,7 +348,7 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
           const uiMessages = savedMessages.map(msg => {
             // For messages loaded from DB, include text content and attachments
             // Don't include tool calls as they may not have the proper reasoning structure
-            // required by GPT-5 and will cause API errors
+            // and will cause API errors
             const parts: any[] = [];
 
             // Add text part

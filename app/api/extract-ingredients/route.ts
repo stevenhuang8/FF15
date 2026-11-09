@@ -6,7 +6,7 @@ import { z } from "zod";
 /**
  * Ingredient Extraction API
  *
- * Uses OpenAI GPT-4 Vision to extract ingredient information from images
+ * Uses Claude vision to extract ingredient information from images
  * (receipts, ingredient photos, food packaging, etc.)
  */
 

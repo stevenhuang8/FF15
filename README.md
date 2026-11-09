@@ -1,13 +1,13 @@
 # Food & Fitness AI (FF Coach)
 
-An intelligent AI-powered platform combining cooking mastery with fitness excellence. Built on Next.js 15 with a sophisticated multi-agent architecture featuring 9 specialized AI subagents and 27 tools, GPT-4 Vision image analysis, and comprehensive health tracking.
+An intelligent AI-powered platform combining cooking mastery with fitness excellence. Built on Next.js 16 with a sophisticated multi-agent architecture featuring 9 specialized AI subagents and 27 tools, Claude vision image analysis, and comprehensive health tracking.
 
 ## Core Capabilities
 
 ### 🤖 AI Conversational Interface
 - **Multi-agent orchestration** with 9 specialized subagents for domain expertise
 - **Streaming responses** with real-time tool execution visibility
-- **GPT-4 Vision integration** for meal photo analysis and ingredient extraction
+- **Claude vision integration** for meal photo analysis and ingredient extraction
 - **RAG-powered knowledge retrieval** via Vectorize for accurate cooking and fitness guidance
 - **Persistent conversation history** with tool call tracking
 
@@ -66,7 +66,7 @@ An intelligent AI-powered platform combining cooking mastery with fitness excell
 ## Technology Stack
 
 ### Frontend
-- **Next.js 15** with App Router and Turbopack for fast development builds
+- **Next.js 16** with App Router and Turbopack for fast development builds
 - **TypeScript 5** with strict type checking
 - **shadcn/ui** component library (New York style, neutral theme)
 - **Tailwind CSS v4** for styling
@@ -78,16 +78,16 @@ An intelligent AI-powered platform combining cooking mastery with fitness excell
 
 ### Backend
 - **Next.js API Routes** for serverless backend
-- **AI SDK 5** (`streamText`, `generateObject`) for AI integration
-- **OpenAI GPT-5** for conversational AI
-- **GPT-4o** for vision-powered image analysis
+- **AI SDK 7** (`streamText`, `generateObject`) for AI integration
+- **Claude Sonnet 5.5** for conversational AI and vision-powered image analysis
+- **Claude Haiku 5.5** for nutrition estimation
 - **Supabase** for authentication and PostgreSQL database
 - **Vectorize** for RAG document retrieval
 - **USDA FoodData Central API** for nutrition data
 - **MCP (Model Context Protocol)** integration support
 
 ### Key Implementation Patterns
-- **Multi-step tool execution** with `stopWhen(stepCountIs(15))`
+- **Multi-step tool execution** with `stopWhen: isStepCount(30)`
 - **Preview-and-confirm workflow** for data-modifying operations
 - **Streaming architecture** with token-by-token responses
 - **Message parts array** structure (text, tool, source-url, reasoning)
@@ -145,7 +145,7 @@ The application uses a main orchestrator that automatically delegates to 9 speci
 
 ### Meal Logging from Photos
 1. User sends a meal photo to the AI agent
-2. GPT-4 Vision analyzes image to identify food items and portions
+2. Claude analyzes the image to identify food items and portions
 3. Agent uses `logMealPreview` with extracted data to calculate nutrition
 4. User confirms and meal is logged with complete nutritional breakdown
 
@@ -153,7 +153,7 @@ The application uses a main orchestrator that automatically delegates to 9 speci
 
 ### Ingredient Extraction from Images
 1. User uploads receipt, packaging, or ingredient list photo
-2. `/api/extract-ingredients` endpoint uses `generateObject()` with GPT-4o
+2. `/api/extract-ingredients` endpoint uses `generateObject()` with Claude Sonnet 5.5
 3. AI extracts ingredient names, quantities, units with confidence scores
 4. Structured data returned with automatic unit normalization
 
@@ -240,7 +240,7 @@ FF15/
 ### Prerequisites
 - Node.js 19+ and pnpm
 - Supabase account (free tier works)
-- OpenAI API key with GPT-5 and GPT-4o access
+- Anthropic API key
 
 ### Installation
 
@@ -275,8 +275,8 @@ Create `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# OpenAI (Required)
-OPENAI_API_KEY=sk-your-openai-api-key
+# Anthropic (Required)
+ANTHROPIC_API_KEY=your_anthropic_api_key
 
 # Vectorize RAG (Optional)
 VECTORIZE_ACCESS_TOKEN=your_vectorize_token

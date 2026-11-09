@@ -63,7 +63,7 @@ export const maxDuration = 300; // 300 seconds (5 min) for complex AI processing
 export const bodyParser = { sizeLimit: '10mb' };
 
 /**
- * Main Chat API Route with True Multi-Agent Orchestration (GPT-5.2)
+ * Main Chat API Route with True Multi-Agent Orchestration (Claude Sonnet 5.5)
  *
  * This endpoint implements TRUE subagents using the tool-based delegation pattern:
  *
@@ -77,7 +77,7 @@ export const bodyParser = { sizeLimit: '10mb' };
  * - workout-planner: Personalized fitness routines
  * - profile-manager: User preferences and goals management
  *
- * The main orchestrator (GPT-5.2) automatically delegates to specialized subagents
+ * The main orchestrator (Claude Sonnet 5.5) automatically delegates to specialized subagents
  * by calling invokeCookingAssistant, invokeRecipeResearcher, etc. as tools.
  * Each subagent runs in its own context with restricted tools for focused expertise.
  *

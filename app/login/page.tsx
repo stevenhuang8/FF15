@@ -20,7 +20,7 @@ export default async function LoginPage({
   return (
     <div className="container flex h-screen w-screen flex-col items-center justify-center">
       <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[400px]">
-        <LoginForm showDemo={showDemo} />
+        <LoginForm showDemo={showDemo} demoRef={ref} />
         <p className="px-8 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{' '}
           <Link

@@ -68,6 +68,12 @@ interface ProgressPhotosProps {
   onPhotoUploaded?: () => void
 }
 
+// image_url holds a storage path. Older rows hold a full public URL, and loaded
+// photos hold a signed URL, so this keeps only the trailing `<user>/<file>`.
+function getPhotoPath(imageUrl: string): string {
+  return imageUrl.split('?')[0].split('/').slice(-2).join('/')
+}
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -132,8 +138,26 @@ export function ProgressPhotos({
 
       if (error) {
         console.error('Error loading progress photos:', error)
+      } else if (data && data.length > 0) {
+        const paths = data.map((photo) => getPhotoPath(photo.image_url))
+        const { data: signed, error: signError } = await supabase.storage
+          .from('progress-photos')
+          .createSignedUrls(paths, 3600) // 1 hour expiry
+
+        if (signError) {
+          console.error('Error signing progress photo URLs:', signError)
+        }
+
+        const signedUrls = new Map(signed?.map((s) => [s.path, s.signedUrl]))
+        setPhotos(
+          data.map((photo, i) => ({
+            ...photo,
+            // Unsigned photos show as broken but stay deletable
+            image_url: signedUrls.get(paths[i]) || `/${paths[i]}`,
+          }))
+        )
       } else if (data) {
-        setPhotos(data)
+        setPhotos([])
       }
     } catch (error) {
       console.error('Exception loading progress photos:', error)
@@ -257,16 +281,11 @@ export function ProgressPhotos({
         throw uploadError
       }
 
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('progress-photos').getPublicUrl(fileName)
-
       // Save metadata to database
       const { error: dbError } = await supabase.from('progress_photos').insert({
         user_id: user.id,
         workout_log_id: workoutLogId || null,
-        image_url: publicUrl,
+        image_url: fileName,
         caption: caption || null,
         taken_at: new Date(takenDate).toISOString(),
       })
@@ -304,9 +323,7 @@ export function ProgressPhotos({
     try {
       const supabase = createClient()
 
-      // Extract file path from URL
-      const url = new URL(photoToDelete.image_url)
-      const filePath = url.pathname.split('/').slice(-2).join('/')
+      const filePath = getPhotoPath(photoToDelete.image_url)
 
       // Delete from storage
       const { error: storageError } = await supabase.storage
@@ -384,6 +401,7 @@ export function ProgressPhotos({
                 src={photo.image_url}
                 alt={photo.caption || 'Progress photo'}
                 fill
+                unoptimized
                 className="object-cover"
                 sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
               />
@@ -528,6 +546,7 @@ export function ProgressPhotos({
                   src={selectedPhoto.image_url}
                   alt={selectedPhoto.caption || 'Progress photo'}
                   fill
+                  unoptimized
                   className="object-contain"
                 />
               </div>

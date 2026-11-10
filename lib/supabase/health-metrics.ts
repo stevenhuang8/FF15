@@ -151,10 +151,12 @@ export async function getHealthMetricsByDate(userId: string, date: string) {
 
 /**
  * Get the most recent health metrics
+ * Server callers must pass their own client: the default has no session there.
  */
-export async function getLatestHealthMetrics(userId: string) {
-  const supabase = createClient();
-
+export async function getLatestHealthMetrics(
+  userId: string,
+  supabase: SupabaseClient = createClient()
+) {
   try {
     const { data, error } = await supabase
       .from('health_metrics')

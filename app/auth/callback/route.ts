@@ -3,6 +3,20 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
+ * Resolves a caller-supplied redirect target, falling back to the home page
+ * unless it stays on this origin.
+ */
+function safeRedirectUrl(destination: string, origin: string): URL {
+  try {
+    const url = new URL(destination, origin)
+    if (url.origin === origin) return url
+  } catch {
+    // Unparseable target, use the fallback below
+  }
+  return new URL('/', origin)
+}
+
+/**
  * Auth callback route for handling email confirmations from Supabase
  *
  * This route processes:
@@ -69,7 +83,7 @@ export async function GET(request: NextRequest) {
 
         // Email verification - send to home or specified redirect
         const destination = redirectTo || next
-        return NextResponse.redirect(`${origin}${destination}`)
+        return NextResponse.redirect(safeRedirectUrl(destination, origin))
       } else {
         // Invalid type parameter
         console.error('Invalid verification type:', type)
@@ -79,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     // If no valid parameters, redirect to home
     const destination = redirectTo || next
-    return NextResponse.redirect(`${origin}${destination}`)
+    return NextResponse.redirect(safeRedirectUrl(destination, origin))
 
   } catch (error) {
     console.error('Unexpected error in auth callback:', error)

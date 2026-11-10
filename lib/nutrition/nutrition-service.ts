@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@/lib/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { searchAndParseFoods, scaleNutrition } from './usda-api';
 import type {
   NutritionData,
@@ -22,10 +23,9 @@ import type {
  * Get nutrition data from cache
  */
 export async function getNutritionFromCache(
-  foodName: string
+  foodName: string,
+  supabase: SupabaseClient = createClient()
 ): Promise<NutritionCacheEntry | null> {
-  const supabase = createClient();
-
   try {
     // Normalize to lowercase for consistent matching
     const normalizedName = foodName.toLowerCase().trim();
@@ -56,10 +56,9 @@ export async function getNutritionFromCache(
  * Save nutrition data to cache
  */
 export async function saveNutritionToCache(
-  nutrition: NutritionData
+  nutrition: NutritionData,
+  supabase: SupabaseClient = createClient()
 ): Promise<NutritionServiceResponse<NutritionCacheEntry>> {
-  const supabase = createClient();
-
   try {
     // Normalize food name to lowercase for consistent matching
     const normalizedName = nutrition.foodName.toLowerCase().trim();
@@ -116,13 +115,16 @@ export async function saveNutritionToCache(
 /**
  * Search for food with automatic caching
  * Checks cache first, falls back to USDA API
+ * Server callers must pass their own client: the default has no session there,
+ * and the cache only accepts writes from logged-in users.
  */
 export async function searchFood(
-  query: string
+  query: string,
+  supabase: SupabaseClient = createClient()
 ): Promise<NutritionServiceResponse<NutritionData[]>> {
   try {
     // Check cache first for exact match
-    const cached = await getNutritionFromCache(query);
+    const cached = await getNutritionFromCache(query, supabase);
     if (cached) {
       console.log('✅ Cache hit for:', query);
       return {
@@ -137,7 +139,7 @@ export async function searchFood(
 
     // Cache the top result if available
     if (results.length > 0) {
-      await saveNutritionToCache(results[0]);
+      await saveNutritionToCache(results[0], supabase);
     }
 
     return { data: results, error: null };

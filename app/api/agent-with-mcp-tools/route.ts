@@ -1,5 +1,6 @@
 import { WEB_SCRAPER_SYSTEM_INSTRUCTIONS } from "@/components/agent/web-scraper-prompt";
 import { getFirecrawlMCPClient } from "@/lib/mcp";
+import { createClient } from "@/lib/supabase/server";
 import { anthropic } from "@ai-sdk/anthropic";
 import {
   streamText,
@@ -12,6 +13,16 @@ import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return new Response("Unauthorized - Please sign in to use the assistant", { status: 401 });
+    }
+
     const { messages } = await request.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {

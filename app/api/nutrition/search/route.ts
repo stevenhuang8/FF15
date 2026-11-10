@@ -7,11 +7,22 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { searchFood } from '@/lib/nutrition/nutrition-service'
+import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'edge'
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const searchParams = request.nextUrl.searchParams
     const query = searchParams.get('query')
 
@@ -22,7 +33,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data, error } = await searchFood(query)
+    const { data, error } = await searchFood(query, supabase)
 
     if (error) {
       console.error('Error searching food:', error)

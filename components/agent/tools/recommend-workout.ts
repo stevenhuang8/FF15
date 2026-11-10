@@ -11,7 +11,7 @@
 
 import { tool } from 'ai'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 
 export const recommendWorkout = tool({
   description: `Generate personalized workout recommendations based on user's fitness goals, available equipment, time constraints, and fitness level.
@@ -87,7 +87,7 @@ export const recommendWorkout = tool({
     })
 
     try {
-      const supabase = createClient()
+      const supabase = await createClient()
 
       // Get user profile for additional context
       const {

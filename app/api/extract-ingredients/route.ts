@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/server";
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
@@ -31,6 +32,19 @@ const extractionResponseSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { imageUrl } = await request.json();
 
     if (!imageUrl || typeof imageUrl !== 'string') {

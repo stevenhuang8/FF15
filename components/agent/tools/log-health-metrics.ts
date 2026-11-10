@@ -91,7 +91,7 @@ export const logHealthMetricsPreview = tool({
         .single();
 
       // Also get latest metrics for comparison if updating a different date
-      const { data: latestMetrics } = await getLatestHealthMetrics(userId);
+      const { data: latestMetrics } = await getLatestHealthMetrics(userId, supabase);
 
       // Build preview message
       const newMetrics = {

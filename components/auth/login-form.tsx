@@ -28,9 +28,10 @@ type LoginFormValues = z.infer<typeof loginSchema>
 
 interface LoginFormProps {
   showDemo?: boolean
+  demoRef?: string
 }
 
-export function LoginForm({ showDemo = false }: LoginFormProps) {
+export function LoginForm({ showDemo = false, demoRef }: LoginFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isDemoLoading, setIsDemoLoading] = useState(false)
@@ -67,7 +68,11 @@ export function LoginForm({ showDemo = false }: LoginFormProps) {
     try {
       setError(null)
       setIsDemoLoading(true)
-      const res = await fetch('/api/auth/demo-login', { method: 'POST' })
+      const res = await fetch('/api/auth/demo-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ref: demoRef }),
+      })
       if (!res.ok) {
         throw new Error('Demo login failed')
       }

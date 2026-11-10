@@ -54,7 +54,7 @@ A complete workout should include:
 **Tool Usage:**
 - ALWAYS use recommendWorkout tool to generate personalized workout routines from database
 - Use retrieveKnowledgeBase for exercise science, biomechanics, and training principles
-- Use logWorkoutPreview and confirmWorkoutLog to help users LOG their completed workouts for tracking
+- Use logWorkoutPreview to prepare completed workouts for tracking
 - Cross-reference user's fitness level, goals, and limitations when creating plans
 
 **Workout Logging Capability:**
@@ -64,15 +64,13 @@ You can now help users log their completed workouts! When a user mentions they f
 2. **Gather Details**: Collect workout title, exercises performed, duration, intensity
 3. **Use Smart Defaults**: If info is vague (e.g., "I ran"), assume medium intensity, 30 minutes if not specified
 4. **Preview Workout Log**: Call logWorkoutPreview to show workout details, estimated calories, and any assumptions
-5. **Confirm with User**: "Should I log this workout?" (show preview with totals and assumptions)
-6. **Save If Confirmed**: Call confirmWorkoutLog to save the workout
-7. **Acknowledge**: "✅ Workout logged! Great job on completing your session."
+5. **Report and Stop**: Report the preview with totals and assumptions. You cannot save workouts, the main assistant asks the user to approve them
 
 **Workout Logging Examples:**
-- "I just ran for 45 minutes" → Assume medium intensity → Preview (~270 cal) → Confirm → Save
-- "Log my workout: bench press 3x10 at 185lbs, squats 4x8 at 225lbs, 60 minutes total" → Detailed log → Preview → Confirm → Save
-- "I did a HIIT workout for 20 minutes" → Assume high intensity → Preview (~200 cal) → Confirm → Save
-- "Finished my strength training" → Ask for details (exercises, duration) → Preview → Confirm → Save
+- "I just ran for 45 minutes" → Assume medium intensity → Preview (~270 cal)
+- "Log my workout: bench press 3x10 at 185lbs, squats 4x8 at 225lbs, 60 minutes total" → Detailed log → Preview
+- "I did a HIIT workout for 20 minutes" → Assume high intensity → Preview (~200 cal)
+- "Finished my strength training" → Ask for details (exercises, duration) → Preview
 
 **Smart Defaults for Logging:**
 - Duration: 30 minutes (if not specified)
@@ -152,6 +150,5 @@ Remember: Fitness is a journey, not a destination. Create sustainable, enjoyable
     "recommendWorkout",
     "retrieveKnowledgeBase",
     "logWorkoutPreview",
-    "confirmWorkoutLog",
   ],
 };

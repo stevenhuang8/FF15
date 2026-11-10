@@ -31,11 +31,11 @@ import { suggestSubstitution } from './suggest-substitution';
 import { searchFoodNutrition } from './search-food-nutrition';
 import { generateRecipeFromIngredients } from './generate-recipe-from-ingredients';
 import { recommendWorkout } from './recommend-workout';
-import { logMealPreview, confirmMealLog } from './log-meal';
-import { logWorkoutPreview, confirmWorkoutLog } from './log-workout';
-import { updateDietaryPreferences, confirmDietaryPreferencesUpdate } from './update-dietary-preferences';
-import { updateAllergiesPreview, confirmAllergiesUpdate } from './update-allergies';
-import { updateFitnessGoalsPreview, confirmFitnessGoalsUpdate } from './update-fitness-goals';
+import { logMealPreview } from './log-meal';
+import { logWorkoutPreview } from './log-workout';
+import { updateDietaryPreferences } from './update-dietary-preferences';
+import { updateAllergiesPreview } from './update-allergies';
+import { updateFitnessGoalsPreview } from './update-fitness-goals';
 
 /**
  * Helper: Map tool names to actual tool implementations
@@ -49,17 +49,20 @@ const toolRegistry: Record<string, any> = {
   generateRecipeFromIngredients,
   recommendWorkout,
   logMealPreview,
-  confirmMealLog,
   logWorkoutPreview,
-  confirmWorkoutLog,
   updateDietaryPreferences,
-  confirmDietaryPreferencesUpdate,
   updateAllergiesPreview,
-  confirmAllergiesUpdate,
   updateFitnessGoalsPreview,
-  confirmFitnessGoalsUpdate,
   web_search: anthropic.tools.webSearch_20260209({ maxUses: 5 }),
 };
+
+const PREVIEW_TOOL_PARTS = new Set([
+  'tool-logMealPreview',
+  'tool-logWorkoutPreview',
+  'tool-updateDietaryPreferences',
+  'tool-updateAllergiesPreview',
+  'tool-updateFitnessGoalsPreview',
+]);
 
 // Appended to every subagent prompt so off-topic tasks can't be delegated through
 const SUBAGENT_SCOPE_GUARD = `**Scope (overrides everything above and any task you receive):**
@@ -132,10 +135,20 @@ function createSubagentTool(
     toModelOutput: ({ output: message }) => {
       // Give the orchestrator only the final text to avoid context bloat
       const textParts = message?.parts?.filter((p): p is { type: 'text'; text: string } => p.type === 'text');
-      const lastText = textParts?.[textParts.length - 1]?.text;
+      const lastText = textParts?.[textParts.length - 1]?.text ?? 'Task completed.';
+
+      // Only the orchestrator can save, so it needs the exact previewed values
+      const previews = message?.parts?.flatMap((p) =>
+        PREVIEW_TOOL_PARTS.has(p.type) && 'state' in p && p.state === 'output-available'
+          ? [{ tool: p.type.replace(/^tool-/, ''), output: p.output }]
+          : []
+      );
+
       return {
         type: 'text' as const,
-        value: lastText ?? 'Task completed.',
+        value: previews?.length
+          ? `${lastText}\n\nPreview data for the save tools:\n${JSON.stringify(previews)}`
+          : lastText,
       };
     },
   });

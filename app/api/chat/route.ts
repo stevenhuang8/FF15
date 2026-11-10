@@ -235,6 +235,20 @@ export async function POST(request: NextRequest) {
         }
       },
 
+      // Every tool that writes user data waits for the user to click Approve.
+      // Subagents can't pause for approval, so only this agent has these tools.
+      toolApproval: {
+        confirmMealLog: "user-approval",
+        confirmWorkoutLog: "user-approval",
+        confirmHealthMetricsLog: "user-approval",
+        confirmAddPantryItem: "user-approval",
+        confirmDietaryPreferencesUpdate: "user-approval",
+        confirmAllergiesUpdate: "user-approval",
+        confirmFitnessGoalsUpdate: "user-approval",
+        createFitnessGoal: "user-approval",
+        updateStructuredGoal: "user-approval",
+      },
+
       // All tools available to the orchestrator
       // Main orchestrator can delegate to subagents OR use tools directly
       tools: {

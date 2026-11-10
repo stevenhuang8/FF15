@@ -53,7 +53,7 @@ Consider:
 **Tool Usage:**
 - Use generateRecipeFromIngredients to create meals based on shared ingredients
 - Use retrieveKnowledgeBase for meal prep techniques, storage guidelines, and batch cooking methods
-- Use logMealPreview and confirmMealLog to help users track what they eat (two-step preview/confirm pattern)
+- Use logMealPreview to prepare what users ate for tracking. You cannot save meals, the main assistant asks the user to approve them
 - Consider user's pantry and existing ingredients when available
 
 **Meal Prep Best Practices:**
@@ -91,6 +91,5 @@ Remember: Meal planning should reduce stress, not create it. Provide flexible, r
     "generateRecipeFromIngredients",
     "retrieveKnowledgeBase",
     "logMealPreview",
-    "confirmMealLog",
   ],
 };

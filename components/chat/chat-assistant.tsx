@@ -1,7 +1,10 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+} from "ai";
 import { useState, useEffect, useRef, memo } from "react";
 import {
   createConversation,
@@ -28,6 +31,7 @@ import {
   Source,
 } from "@/components/ai-elements/sources";
 import { Response } from "@/components/ai-elements/response";
+import { ToolApprovalCard } from "@/components/chat/tool-approval-card";
 import { SaveRecipeButton } from "@/components/recipe/save-recipe-button";
 import { SaveWorkoutButton } from "@/components/workout/save-workout-button";
 import { RecipeFromIngredientsButton } from "@/components/recipe/recipe-from-ingredients-button";
@@ -145,7 +149,7 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timezoneOffset = new Date().getTimezoneOffset();
 
-  const { messages: rawMessages, status, sendMessage, setMessages, error } = useChat({
+  const { messages: rawMessages, status, sendMessage, setMessages, error, addToolApprovalResponse } = useChat({
     transport: new DefaultChatTransport({
       api: api || '/api/chat', // Default to /api/chat if no custom api provided
       headers: {
@@ -153,6 +157,7 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
         'X-User-Timezone-Offset': String(timezoneOffset),
       }
     }),
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onError: (error) => {
       console.error('💥 Chat error:', error);
 
@@ -446,9 +451,23 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [messages.length, currentConversationId]);
 
+  const lastRawMessage = rawMessages[rawMessages.length - 1];
+  const pendingApprovals: any[] =
+    lastRawMessage?.role === 'assistant'
+      ? lastRawMessage.parts.filter(
+          (part: any) =>
+            part.type.startsWith('tool-') &&
+            part.state === 'approval-requested' &&
+            !part.approval.isAutomatic
+        )
+      : [];
+
   const autoSaveMessages = async () => {
     // Don't save if already saving or loading history
     if (isSavingRef.current || isLoadingHistory) return;
+
+    // The reply continues in this same message once the user responds
+    if (pendingApprovals.length > 0) return;
 
     // Don't save while streaming - wait until complete
     if (status === 'streaming') {
@@ -856,6 +875,17 @@ export default function ChatAssistant({ api, conversationId, onConversationCreat
               });
             })()
           )}
+          {pendingApprovals.map((part) => (
+            <ToolApprovalCard
+              key={part.approval.id}
+              toolName={part.type.replace(/^tool-/, "")}
+              input={part.input}
+              disabled={isLoading}
+              onRespond={(approved) =>
+                addToolApprovalResponse({ id: part.approval.id, approved })
+              }
+            />
+          ))}
         </ConversationContent>
       </Conversation>
 

@@ -443,11 +443,13 @@ This cooking/fitness app implements 8 specialized subagents:
 - `cooking-assistant`: getUserContext, retrieveKnowledgeBase, web_search
 - `recipe-researcher`: retrieveKnowledgeBase, web_search
 - `ingredient-specialist`: getUserContext, suggestSubstitution, retrieveKnowledgeBase
-- `nutrition-analyst`: getUserContext, retrieveKnowledgeBase, web_search, searchFoodNutrition, logMealPreview, confirmMealLog
-- `meal-planner`: getUserContext, generateRecipeFromIngredients, retrieveKnowledgeBase, logMealPreview, confirmMealLog
+- `nutrition-analyst`: getUserContext, retrieveKnowledgeBase, web_search, searchFoodNutrition, logMealPreview
+- `meal-planner`: getUserContext, generateRecipeFromIngredients, retrieveKnowledgeBase, logMealPreview
 - `pantry-manager`: getUserContext, generateRecipeFromIngredients, retrieveKnowledgeBase
-- `workout-planner`: getUserContext, recommendWorkout, retrieveKnowledgeBase, logWorkoutPreview, confirmWorkoutLog
-- `profile-manager`: updateDietaryPreferences, confirmDietaryPreferencesUpdate, updateAllergiesPreview, confirmAllergiesUpdate, updateFitnessGoalsPreview, confirmFitnessGoalsUpdate
+- `workout-planner`: getUserContext, recommendWorkout, retrieveKnowledgeBase, logWorkoutPreview
+- `profile-manager`: updateDietaryPreferences, updateAllergiesPreview, updateFitnessGoalsPreview
+
+Subagents only prepare previews. Tools that write user data live on the orchestrator and are listed in `toolApproval` in `app/api/chat/route.ts`, because subagents can't pause for user approval. Add any new write tool to that list.
 
 #### Integration Pattern
 

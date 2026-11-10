@@ -14,6 +14,7 @@ This document provides specific guidance for working with the chat interface com
 
 - The chat renders message text, attachments, sources, and the save actions for recipes and workouts
 - Tool calls and reasoning are **not** rendered. Tool parts stay in the message so sources can be extracted and tool calls can be saved to the database
+- The exception is a tool part in the `approval-requested` state, which renders as `ToolApprovalCard` below the messages
 - Each rendered flow item has a unique key to prevent React warnings
 
 #### Message Structure
